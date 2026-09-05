@@ -9,7 +9,7 @@ class EstadoAuction(str, enum.Enum):
     finalizada = 'finalizada'
     cancelada = 'cancelada'
 
-class auction(Base):
+class Auction(Base):
     __tablename__ = 'auctions'
     id = Column(Integer, primary_key = True, index = True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)

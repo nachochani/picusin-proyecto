@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
-class auction_bid(Base):
+class Auction_bid(Base):
     __tablename__ = "auction_bids"
     id = Column(Integer, primary_key = True, index = True)
     auction_id = Column(Integer, ForeignKey("auctions.id"), nullable = False)
