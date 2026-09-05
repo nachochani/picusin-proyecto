@@ -1,6 +1,12 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float, Enum
 from sqlalchemy.sql import func
 from app.database import Base
+import enum
+
+class EstadoProducto(str, enum.Enum):
+    disponible = "disponible"
+    reservado = "reservado"
+    vendido = "vendido"
 
 class Product(Base):
     __tablename__ = "products"
@@ -13,5 +19,6 @@ class Product(Base):
     imagen = Column(String(500), nullable = True)
     es_novedad = Column(Boolean, default = False)
     es_preventa = Column(Boolean, default = False)
+    estado = Column(Enum(EstadoProducto), default=EstadoProducto.disponible)
     activo = Column(Boolean, default = True)
     creado_en = Column(DateTime, default = func.now())
