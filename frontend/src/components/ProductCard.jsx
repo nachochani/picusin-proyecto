@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom'
+
 function ProductCard({ producto }) {
+  const navigate = useNavigate()
+
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <img
@@ -14,10 +18,11 @@ function ProductCard({ producto }) {
             ${producto.precio}
           </span>
           <button
+            onClick={() => navigate(`/producto/${producto.id}`)}
             className="px-4 py-2 rounded-full text-white font-semibold hover:opacity-90"
             style={{backgroundColor: '#4DD9E8'}}
           >
-            Reservar
+            Ver producto
           </button>
         </div>
       </div>
