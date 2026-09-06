@@ -33,3 +33,10 @@ def crear_reserva(user_id: int, product_id: int, db: Session= Depends(get_db)):
 
     return (f"Reserva creada correctamente, id: {nueva_reserva.id}")
 
+@router.get("/reservaciones/{user_id}")
+def get_reservaciones(user_id: int, db: Session = Depends(get_db)):
+    reservaciones = db.query(Reservation).filter(Reservation.user_id == user_id).all()
+    if not reservaciones:
+        raise HTTPException(status_code=404, detail="No se encontraron reservaciones para este usuario")
+    return reservaciones
+
