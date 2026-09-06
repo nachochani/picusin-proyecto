@@ -7,7 +7,10 @@ router = APIRouter()
 
 @router.get("/productos")
 def get_productos(db: Session = Depends(get_db)):
-    productos = db.query(Product).filter(Product.activo == True).all()
+    productos = db.query(Product).filter(
+        Product.activo == True,
+        Product.es_novedad == True
+    ).all()
     return productos
 
 @router.get("/productos/{id}")

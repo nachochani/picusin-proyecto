@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 class WeeklyCatalog(Base):
-    __tablename__ = "weekly_catalogs"
+    __tablename__ = "weekly_catalog"
 
     id = Column(Integer, primary_key = True, index = True )
     fecha_inicio = Column(Date, nullable = False)
