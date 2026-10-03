@@ -5,11 +5,22 @@ function ProductCard({ producto }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
-      <img
-        src={producto.imagen_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}
-        alt={producto.nombre}
-        className="w-full h-48 object-cover"
-      />
+      {producto.imagen && producto.imagen.includes('instagram') ? (
+        <a 
+          href={producto.imagen} 
+          target="_blank" 
+          rel="noreferrer"
+          className="w-full h-48 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition"
+        >
+          <span className="text-gray-500 font-semibold">📷 Ver imagen</span>
+        </a>
+      ) : (
+        <img
+          src={producto.imagen || 'https://via.placeholder.com/300x200?text=Sin+imagen'}
+          alt={producto.nombre}
+          className="w-full h-48 object-cover"
+        />
+      )}
       <div className="p-4">
         <h2 className="text-lg font-bold text-gray-800">{producto.nombre}</h2>
         <p className="text-gray-500 text-sm mt-1">{producto.descripcion}</p>

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.models import user, product, order, weekly_catalog, catalog_product, reservation, discount_code, auction, auction_bid
-from app.routes import auth, products, reservations
+from app.routes import auth, products, reservations, admin
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(products.router, prefix="/api", tags=["products"])
 app.include_router(reservations.router, prefix="/api", tags=["reservations"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 @app.get("/")
 def root():

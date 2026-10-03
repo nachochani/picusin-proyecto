@@ -52,11 +52,22 @@ function ProductDetail() {
 
         {producto && (
           <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <img
-              src={producto.imagen_url || 'https://via.placeholder.com/600x400?text=Sin+imagen'}
-              alt={producto.nombre}
-              className="w-full h-64 object-cover"
-            />
+            {producto.imagen && producto.imagen.includes('instagram') ? (
+              <a 
+                href={producto.imagen} 
+                target="_blank" 
+                rel="noreferrer"
+                className="w-full h-64 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition"
+              >
+                <span className="text-gray-500 font-semibold">📷 Ver imagen</span>
+              </a>
+            ) : (
+              <img
+                src={producto.imagen || 'https://via.placeholder.com/600x400?text=Sin+imagen'}
+                alt={producto.nombre}
+                className="w-full h-64 object-cover"
+              />
+            )}
             <div className="p-6">
               <h1 className="text-3xl font-bold text-gray-800">{producto.nombre}</h1>
               <p className="text-gray-500 mt-2">{producto.descripcion}</p>
