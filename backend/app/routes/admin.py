@@ -24,9 +24,10 @@ async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(ge
     productos_cargados = 0
     productos_omitidos = 0
 
-    for hoja in wb.worksheets:
-        for fila in hoja.iter_rows(min_row = 2, values_only = False):
-
+    for idx, hoja in enumerate(wb.worksheets):
+        es_novedad = True if idx == 0 else False
+    
+        for fila in hoja.iter_rows(min_row=2, values_only=False):
             nombre = fila[0].value
             precio = fila[1].value
             estado_excel = fila[2].value if len(fila) > 2 else None
@@ -36,7 +37,7 @@ async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(ge
                 continue
 
             try:
-                precio = float(str(precio).replace('$','').replace('.','').replace(',',''))
+                precio = float(str(precio).replace('$', '').replace('.', '').replace(',', '.'))
             except:
                 productos_omitidos += 1
                 continue
@@ -48,25 +49,23 @@ async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(ge
                 estado = EstadoProducto.disponible
                 es_preventa = True
 
-            # Obtener URL de imagen
             imagen_url = None
             if celda_imagen and celda_imagen.hyperlink:
                 imagen_url = celda_imagen.hyperlink.target
             elif celda_imagen and celda_imagen.value and str(celda_imagen.value).startswith('http'):
                 imagen_url = celda_imagen.value
-            # Crear el producto
+
             nuevo_producto = Product(
                 nombre=str(nombre).strip(),
                 precio=precio,
                 estado=estado,
                 es_preventa=es_preventa,
-                es_novedad=True,
+                es_novedad=es_novedad,
                 imagen=imagen_url,
                 activo=True
             )
             db.add(nuevo_producto)
             productos_cargados += 1
-
     db.commit()
 
     return {
