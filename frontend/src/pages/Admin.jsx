@@ -7,12 +7,51 @@ function Admin() {
   const navigate = useNavigate()
   const [seccion, setSeccion] = useState('productos')
   const [productos, setProductos] = useState([])
+  const [reservas, setReservas] = useState([])
+  const [mensaje, setMensaje] = useState('')
+  const [archivo, setArchivo] = useState(null)
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/admin/productos')
-      .then(res => setProductos(res.data))
-      .catch(() => console.error('Error al cargar productos'))
-  }, [])
+    if (seccion === 'productos') {
+      axios.get('http://127.0.0.1:8000/admin/productos')
+        .then(res => setProductos(res.data))
+    }
+    if (seccion === 'reservas') {
+      axios.get('http://127.0.0.1:8000/admin/reservas')
+        .then(res => setReservas(res.data))
+    }
+  }, [seccion])
+
+  const handleCargarExcel = async () => {
+    if (!archivo) return
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    try {
+      const res = await axios.post('http://127.0.0.1:8000/admin/cargar-excel', formData)
+      setMensaje(res.data.mensaje)
+      axios.get('http://127.0.0.1:8000/admin/productos').then(r => setProductos(r.data))
+    } catch (_) {
+      setMensaje('Error al cargar el archivo')
+    }
+  }
+
+  const handleCambiarEstadoReserva = async (id, estado) => {
+    try {
+      await axios.put(`http://127.0.0.1:8000/admin/reservas/${id}/estado?estado=${estado}`)
+      axios.get('http://127.0.0.1:8000/admin/reservas').then(r => setReservas(r.data))
+    } catch (_) {
+      setMensaje('Error al actualizar la reserva')
+    }
+  }
+
+  const handleDesactivarProducto = async (id) => {
+    try {
+      await axios.delete(`http://127.0.0.1:8000/admin/productos/${id}`)
+      setProductos(prev => prev.filter(p => p.id !== id))
+    } catch (_) {
+      setMensaje('Error al desactivar el producto')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -22,12 +61,18 @@ function Admin() {
           Panel de Administración
         </h1>
 
+        {mensaje && (
+          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
+            {mensaje}
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-4 mb-8">
-          {['productos', 'reservas', 'descuentos', 'subastas'].map(tab => (
+          {['productos', 'reservas', 'subastas', 'descuentos'].map(tab => (
             <button
               key={tab}
-              onClick={() => setSeccion(tab)}
+              onClick={() => { setSeccion(tab); setMensaje('') }}
               className={`px-4 py-2 rounded-lg font-semibold capitalize ${
                 seccion === tab ? 'text-white' : 'bg-white text-gray-500 border'
               }`}
@@ -41,8 +86,29 @@ function Admin() {
         {/* Sección productos */}
         {seccion === 'productos' && (
           <div>
+            {/* Carga masiva */}
+            <div className="bg-white rounded-2xl shadow p-4 mb-6">
+              <h2 className="text-lg font-bold text-gray-700 mb-3">Carga masiva por Excel</h2>
+              <div className="flex gap-4 items-center">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  onChange={(e) => setArchivo(e.target.files[0])}
+                  className="border border-gray-300 rounded-lg px-3 py-2"
+                />
+                <button
+                  onClick={handleCargarExcel}
+                  className="px-4 py-2 rounded-lg text-white font-semibold"
+                  style={{backgroundColor: '#4DD9E8'}}
+                >
+                  Cargar Excel
+                </button>
+              </div>
+            </div>
+
+            {/* Tabla productos */}
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-700">Productos</h2>
+              <h2 className="text-xl font-bold text-gray-700">Productos ({productos.length})</h2>
               <button
                 className="px-4 py-2 rounded-lg text-white font-semibold"
                 style={{backgroundColor: '#FF4DB8'}}
@@ -66,7 +132,7 @@ function Admin() {
                   {productos.map((p, i) => (
                     <tr key={p.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="px-4 py-3">{p.nombre}</td>
-                      <td className="px-4 py-3">${p.precio}</td>
+                      <td className="px-4 py-3">${p.precio.toLocaleString('es-AR')}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           p.estado === 'disponible' ? 'bg-green-100 text-green-700' :
@@ -77,12 +143,18 @@ function Admin() {
                         </span>
                       </td>
                       <td className="px-4 py-3">{p.es_novedad ? '✅' : '❌'}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 flex gap-2">
                         <button
                           className="text-cyan-500 hover:underline font-semibold"
                           onClick={() => navigate(`/admin/producto/${p.id}`)}
                         >
                           Editar
+                        </button>
+                        <button
+                          className="text-red-400 hover:underline font-semibold"
+                          onClick={() => handleDesactivarProducto(p.id)}
+                        >
+                          Desactivar
                         </button>
                       </td>
                     </tr>
@@ -97,6 +169,60 @@ function Admin() {
         {seccion === 'reservas' && (
           <div>
             <h2 className="text-xl font-bold text-gray-700 mb-4">Reservas</h2>
+            <div className="bg-white rounded-2xl shadow overflow-hidden">
+              <table className="w-full">
+                <thead style={{backgroundColor: '#4DD9E8'}}>
+                  <tr>
+                    <th className="text-left px-4 py-3 text-white">ID</th>
+                    <th className="text-left px-4 py-3 text-white">Usuario</th>
+                    <th className="text-left px-4 py-3 text-white">Producto</th>
+                    <th className="text-left px-4 py-3 text-white">Seña</th>
+                    <th className="text-left px-4 py-3 text-white">Estado</th>
+                    <th className="text-left px-4 py-3 text-white">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reservas.map((r, i) => (
+                    <tr key={r.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <td className="px-4 py-3">{r.id}</td>
+                      <td className="px-4 py-3">{r.user_id}</td>
+                      <td className="px-4 py-3">{r.product_id}</td>
+                      <td className="px-4 py-3">${r.monto_senia?.toLocaleString('es-AR')}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          r.estado === 'confirmada' ? 'bg-green-100 text-green-700' :
+                          r.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {r.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 flex gap-2">
+                        <button
+                          className="text-green-500 hover:underline font-semibold text-sm"
+                          onClick={() => handleCambiarEstadoReserva(r.id, 'confirmada')}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          className="text-red-400 hover:underline font-semibold text-sm"
+                          onClick={() => handleCambiarEstadoReserva(r.id, 'cancelada')}
+                        >
+                          Cancelar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Sección subastas */}
+        {seccion === 'subastas' && (
+          <div>
+            <h2 className="text-xl font-bold text-gray-700 mb-4">Subastas</h2>
             <p className="text-gray-400">Próximamente...</p>
           </div>
         )}
@@ -105,14 +231,6 @@ function Admin() {
         {seccion === 'descuentos' && (
           <div>
             <h2 className="text-xl font-bold text-gray-700 mb-4">Códigos de descuento</h2>
-            <p className="text-gray-400">Próximamente...</p>
-          </div>
-        )}
-
-        {/* Sección subastas */}
-        {seccion === 'subastas' && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-700 mb-4">Subastas</h2>
             <p className="text-gray-400">Próximamente...</p>
           </div>
         )}
