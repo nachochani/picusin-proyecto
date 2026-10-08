@@ -15,8 +15,9 @@ function Login() {
         `http://127.0.0.1:8000/auth/login?email=${email}&password=${password}`
       )
       localStorage.setItem('token', response.data.access_token)
+      localStorage.setItem('es_admin', response.data.es_admin)
       navigate('/')
-    } catch (error) {
+    } catch (_) {
       setError('Email o contraseña incorrectos')
     }
   }

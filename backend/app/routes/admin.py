@@ -100,7 +100,17 @@ async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(ge
                 continue
 
             try:
-                precio = float(str(precio).replace('$', '').replace('.', '').replace(',', '.'))
+                precio_str = str(precio).replace('$', '').replace(' ', '').strip()
+                if ',' in precio_str and '.' in precio_str:
+                    precio_str = precio_str.replace('.', '').replace(',', '.')
+                elif ',' in precio_str:
+                    precio_str = precio_str.replace(',', '.')
+                elif '.' in precio_str:
+                    # verificar si el punto es separador de miles (ej: 50.000)
+                    partes = precio_str.split('.')
+                    if len(partes[-1]) == 3:
+                        precio_str = precio_str.replace('.', '')
+                precio = float(precio_str)
             except:
                 productos_omitidos += 1
                 continue

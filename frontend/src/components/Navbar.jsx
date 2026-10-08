@@ -6,8 +6,11 @@ function Navbar() {
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('es_admin')
     navigate('/')
   }
+
+  const esAdmin = localStorage.getItem('es_admin') === 'true'
 
   return (
     <nav style={{backgroundColor: '#4DD9E8'}} className="px-6 py-4 flex justify-between items-center shadow-md">
@@ -15,9 +18,15 @@ function Navbar() {
         Picusín Mangas
       </h1>
       <div className="flex gap-4 items-center">
-        <a href="/" className="text-white font-semibold hover:text-pink-200">Inicio</a>
-        <a href="/novedades" className="text-white font-semibold hover:text-pink-200">Novedades</a>
+        <a href="/" className="text-white font-semibold hover:text-pink-200">Novedades</a>
+        <a href="/productos" className="text-white font-semibold hover:text-pink-200">Productos</a>
         <a href="/subastas" className="text-white font-semibold hover:text-pink-200">Subastas</a>
+        {token && !esAdmin && (
+          <a href="/mis-pedidos" className="text-white font-semibold hover:text-pink-200">Mis pedidos</a>
+        )}
+        {token && esAdmin && (
+          <a href="/admin" className="text-white font-semibold hover:text-pink-200">Panel Admin</a>
+        )}
         {token ? (
           <button
             onClick={handleLogout}

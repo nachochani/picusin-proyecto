@@ -9,8 +9,9 @@ function Admin() {
   const [productos, setProductos] = useState([])
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/productos')
+    axios.get('http://127.0.0.1:8000/admin/productos')
       .then(res => setProductos(res.data))
+      .catch(() => console.error('Error al cargar productos'))
   }, [])
 
   return (

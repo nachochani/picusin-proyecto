@@ -50,4 +50,4 @@ def login(email: str, password: str, db: Session = Depends(get_db)):
     datos["exp"] = expiracion
     token = jwt.encode(datos, SECRET_KEY, algorithm=ALGORITHM)
 
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "es_admin": usuario.es_admin}
