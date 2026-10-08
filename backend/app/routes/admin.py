@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.product import Product, EstadoProducto
 from app.models.order import Order
+from app.models.reservation import Reservation
 import openpyxl
 import io
 
@@ -14,6 +15,68 @@ def get_productos(db: Session = Depends(get_db)):
         Product.activo == True,
     ).all()
     return productos
+
+@router.post("/productos")
+def crear_producto(
+    nombre:str,
+    precio: float,
+    imagen:str = None,
+    es_novedad: bool = False,
+    es_preventa: bool = False,
+    db: Session = Depends(get_db)
+    ):
+    nuevo_producto = Product(
+        nombre=nombre.strip(),
+        precio=precio,
+        estado = EstadoProducto.disponible,
+        es_preventa=es_preventa,
+        es_novedad=es_novedad,
+        imagen=imagen,
+        activo=True
+    )  
+    db.add(nuevo_producto)
+    db.commit()
+    db.refresh(nuevo_producto)
+
+    return nuevo_producto
+
+@router.put("/productos/{id}")
+def update_product(
+    id: int,
+    nombre: str = None,
+    precio: float = None,
+    estado: str = None,
+    imagen: str = None,
+    db: Session = Depends(get_db)):
+    producto = db.query(Product).filter(Product.id == id).first()
+
+    if not producto:
+        raise HTTPException(status_code=404, detail = "Producto no encontrado")
+
+    if nombre: producto.nombre = nombre
+    if precio: producto.precio = precio
+    if estado: producto.estado = estado
+    if imagen: producto.imagen = imagen
+
+
+    db.commit()
+    db.refresh(producto)
+
+    return producto
+
+@router.delete("/productos/{id}")
+def delete_product(id: int, db: Session = Depends(get_db)):
+    producto = db.query(Product).filter(Product.id == id).first()
+
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    producto.activo = False
+
+    db.commit()
+    db.refresh(producto)
+
+    return producto
 
 @router.post("/cargar-excel")
 async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -71,3 +134,25 @@ async def cargar_excel(archivo: UploadFile = File(...), db: Session = Depends(ge
     return {
         "mensaje": f"Carga completada: {productos_cargados} productos cargados, {productos_omitidos} omitidos"
     }
+
+@router.get("/reservas")
+def get_reservas(db: Session = Depends(get_db)):
+    reservas = db.query(Reservation).all()
+    return reservas
+
+@router.put("/reservas/{id}/estado")
+def update_estado_reserva(id: int, estado: str, db: Session = Depends(get_db)):
+    reserva = db.query(Reservation).filter(Reservation.id == id).first()
+
+    if not reserva:
+        raise HTTPException(status_code=404, detail = "Reserva no encontrada")
+    estados_validos = ["pendiente", "confirmada", "cancelada"]
+
+    if estado not in estados_validos:
+        raise HTTPException(status_code=400, detail = "Estado no valido")
+    reserva.estado = estado
+
+    db.commit()
+    db.refresh(reserva)
+
+    return reserva
