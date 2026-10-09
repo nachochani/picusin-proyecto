@@ -87,14 +87,42 @@ function Subastas() {
                 key={subasta.id}
                 className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col"
               >
-                <div className="h-44 bg-gray-100 flex items-center justify-center">
-                  <span className="text-gray-400 text-5xl" aria-hidden="true">
-                    📦
-                  </span>
-                  <span className="sr-only">
-                    Imagen del producto próximamente
-                  </span>
+
+                <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                {subasta.imagen && subasta.imagen.includes('instagram') ? (
+                    <a
+                    href={subasta.imagen}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition"
+                    >
+                    <span className="text-gray-500 font-semibold">
+                        📷 Ver imagen
+                    </span>
+                    </a>
+                ) : subasta.imagen ? (
+                    <img
+                    src={subasta.imagen}
+                    alt={subasta.producto}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling.style.display = 'flex'
+                    }}
+                    />
+                ) : null}
+
+                <div
+                    className="w-full h-full items-center justify-center text-gray-400"
+                    style={{
+                    display: subasta.imagen ? 'none' : 'flex',
+                    }}
+                >
+                    <span className="text-5xl" aria-hidden="true">📦</span>
+                    <span className="sr-only">Producto sin imagen</span>
                 </div>
+                </div>
+
 
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex justify-between items-start gap-3 mb-3">

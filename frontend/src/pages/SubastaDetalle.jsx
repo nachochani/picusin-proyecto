@@ -141,6 +141,42 @@ function SubastaDetalle() {
           >
             {subasta.producto}
           </h1>
+          
+        <div className="w-full max-w-2xl h-64 md:h-80 mb-5 rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+        {subasta.imagen && subasta.imagen.includes('instagram') ? (
+            <a
+            href={subasta.imagen}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full h-full flex items-center justify-center hover:bg-gray-200 transition"
+            >
+            <span className="text-gray-500 font-semibold">
+                📷 Ver imagen
+            </span>
+            </a>
+        ) : subasta.imagen ? (
+            <img
+            src={subasta.imagen}
+            alt={subasta.producto}
+            className="w-full h-full object-contain"
+            onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                e.currentTarget.nextElementSibling.style.display = 'flex'
+            }}
+            />
+        ) : null}
+
+        <div
+            className="w-full h-full items-center justify-center text-gray-400"
+            style={{
+            display: subasta.imagen ? 'none' : 'flex',
+            }}
+        >
+            <span className="text-5xl" aria-hidden="true">📦</span>
+            <span className="sr-only">Producto sin imagen</span>
+        </div>
+        </div>
+
 
           <span
             className={`inline-block rounded-full px-4 py-1 text-sm font-bold ${
