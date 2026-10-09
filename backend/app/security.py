@@ -1,4 +1,3 @@
-
 import os
 
 from fastapi import Depends, HTTPException
@@ -16,17 +15,18 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = HTTPBearer()
 
 
-def get_current_admin(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    token = credentials.credentials
-    
+
     if not SECRET_KEY:
         raise HTTPException(
             status_code=500,
             detail="Falta configurar SECRET_KEY"
         )
+
+    token = credentials.credentials
 
     try:
         payload = jwt.decode(
@@ -52,6 +52,13 @@ def get_current_admin(
             detail="Usuario no encontrado",
             headers={"WWW-Authenticate": "Bearer"}
         )
+
+    return usuario
+
+
+def get_current_admin(
+    usuario: User = Depends(get_current_user)
+) -> User:
 
     if not usuario.es_admin:
         raise HTTPException(
