@@ -159,3 +159,49 @@ def realizar_puja(
         "precio_actual": subasta.precio_actual,
         "usuario_id": usuario.id,
     }
+
+@router.get("/subastas/{auction_id}")
+def obtener_subasta(
+    auction_id: int,
+    db: Session = Depends(get_db),
+):
+    subasta = db.query(Auction).filter(
+        Auction.id == auction_id
+    ).first()
+
+    if subasta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subasta no encontrada",
+        )
+
+    pujas = (
+        db.query(Auction_bid)
+        .filter(Auction_bid.auction_id == auction_id)
+        .order_by(
+            Auction_bid.monto.desc(),
+            Auction_bid.creado_en.desc(),
+        )
+        .all()
+    )
+
+    return {
+        "id": subasta.id,
+        "product_id": subasta.product_id,
+        "producto": subasta.producto.nombre,
+        "precio_base": subasta.precio_base,
+        "precio_actual": subasta.precio_actual,
+        "fecha_inicio": subasta.fecha_inicio,
+        "fecha_fin": subasta.fecha_fin,
+        "estado": subasta.estado.value,
+        "ganador_id": subasta.ganador_id,
+        "pujas": [
+            {
+                "id": puja.id,
+                "usuario_id": puja.user_id,
+                "monto": puja.monto,
+                "creado_en": puja.creado_en,
+            }
+            for puja in pujas
+        ],
+    }
