@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../api'
 import Navbar from '../components/Navbar'
 
 function Admin() {
@@ -11,25 +11,33 @@ function Admin() {
   const [mensaje, setMensaje] = useState('')
   const [archivo, setArchivo] = useState(null)
 
+
   useEffect(() => {
     if (seccion === 'productos') {
-      axios.get('http://127.0.0.1:8000/admin/productos')
+      api.get('/admin/productos')
         .then(res => setProductos(res.data))
+        .catch(() => setMensaje('Error al cargar los productos'))
     }
+
     if (seccion === 'reservas') {
-      axios.get('http://127.0.0.1:8000/admin/reservas')
+      api.get('/admin/reservas')
         .then(res => setReservas(res.data))
+        .catch(() => setMensaje('Error al cargar las reservas'))
     }
   }, [seccion])
 
   const handleCargarExcel = async () => {
     if (!archivo) return
+
     const formData = new FormData()
     formData.append('archivo', archivo)
+
     try {
-      const res = await axios.post('http://127.0.0.1:8000/admin/cargar-excel', formData)
+      const res = await api.post('/admin/cargar-excel', formData)
       setMensaje(res.data.mensaje)
-      axios.get('http://127.0.0.1:8000/admin/productos').then(r => setProductos(r.data))
+
+      const productosRes = await api.get('/admin/productos')
+      setProductos(productosRes.data)
     } catch (_) {
       setMensaje('Error al cargar el archivo')
     }
@@ -37,8 +45,10 @@ function Admin() {
 
   const handleCambiarEstadoReserva = async (id, estado) => {
     try {
-      await axios.put(`http://127.0.0.1:8000/admin/reservas/${id}/estado?estado=${estado}`)
-      axios.get('http://127.0.0.1:8000/admin/reservas').then(r => setReservas(r.data))
+      await api.put(`/admin/reservas/${id}/estado?estado=${estado}`)
+
+      const reservasRes = await api.get('/admin/reservas')
+      setReservas(reservasRes.data)
     } catch (_) {
       setMensaje('Error al actualizar la reserva')
     }
@@ -46,12 +56,13 @@ function Admin() {
 
   const handleDesactivarProducto = async (id) => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/admin/productos/${id}`)
+      await api.delete(`/admin/productos/${id}`)
       setProductos(prev => prev.filter(p => p.id !== id))
     } catch (_) {
       setMensaje('Error al desactivar el producto')
     }
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50">

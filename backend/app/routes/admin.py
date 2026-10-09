@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from app.security import get_current_admin
 from app.database import get_db
 from app.models.product import Product, EstadoProducto
 from app.models.order import Order
@@ -7,7 +8,9 @@ from app.models.reservation import Reservation
 import openpyxl
 import io
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(get_current_admin)]
+)
 
 @router.get("/productos")
 def get_productos(db: Session = Depends(get_db)):

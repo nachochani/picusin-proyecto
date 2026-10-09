@@ -10,5 +10,5 @@ class User(Base):
     apellido = Column(String(100), nullable = False)
     email = Column(String(100), unique = True, index = True, nullable = False)
     password = Column(String(255), nullable = False)
-    es_admin = Column(Boolean, default = True)
+    es_admin = Column(Boolean, default = False, nullable= False)
     creado_en = Column(DateTime, default = func.now())

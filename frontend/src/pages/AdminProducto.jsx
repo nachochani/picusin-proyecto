@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../api'
 import Navbar from '../components/Navbar'
 
 function AdminProducto() {
@@ -16,9 +16,10 @@ function AdminProducto() {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
 
+
   useEffect(() => {
     if (!esNuevo) {
-      axios.get(`http://127.0.0.1:8000/api/productos/${id}`)
+      api.get(`/api/productos/${id}`)
         .then(res => {
           setNombre(res.data.nombre)
           setPrecio(res.data.precio)
@@ -32,21 +33,26 @@ function AdminProducto() {
   const handleGuardar = async () => {
     try {
       if (esNuevo) {
-        await axios.post(
-          `http://127.0.0.1:8000/admin/productos?nombre=${nombre}&precio=${precio}&imagen=${imagen}&es_novedad=${esNovedad}&es_preventa=${esPreventa}`
+        await api.post(
+          `/admin/productos?nombre=${encodeURIComponent(nombre)}&precio=${precio}&imagen=${encodeURIComponent(imagen)}&es_novedad=${esNovedad}&es_preventa=${esPreventa}`
         )
+
         setMensaje('Producto creado correctamente')
       } else {
-        await axios.put(
-          `http://127.0.0.1:8000/admin/productos/${id}?nombre=${nombre}&precio=${precio}&imagen=${imagen}`
+        await api.put(
+          `/admin/productos/${id}?nombre=${encodeURIComponent(nombre)}&precio=${precio}&imagen=${encodeURIComponent(imagen)}`
         )
+
         setMensaje('Producto actualizado correctamente')
       }
+
       setTimeout(() => navigate('/admin'), 1500)
-    } catch (_) {
+    } catch (error) {
+      console.error('Error al guardar el producto:', error.response?.data || error.message)
       setError('Error al guardar el producto')
     }
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50">

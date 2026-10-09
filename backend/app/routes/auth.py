@@ -23,7 +23,8 @@ def register(nombre: str, apellido:str, email: str, password: str, db: Session =
         nombre = nombre,
         apellido = apellido,
         email = email,
-        password = password_encriptado
+        password = password_encriptado,
+        es_admin = False
     )
 
     db.add(nuevo_usuario)
