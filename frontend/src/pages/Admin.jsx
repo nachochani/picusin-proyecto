@@ -8,6 +8,7 @@ function Admin() {
   const [seccion, setSeccion] = useState('productos')
   const [productos, setProductos] = useState([])
   const [reservas, setReservas] = useState([])
+  const [subastas, setSubastas] = useState([])
   const [mensaje, setMensaje] = useState('')
   const [archivo, setArchivo] = useState(null)
 
@@ -23,6 +24,12 @@ function Admin() {
       api.get('/admin/reservas')
         .then(res => setReservas(res.data))
         .catch(() => setMensaje('Error al cargar las reservas'))
+    }
+
+    if (seccion === 'subastas') {
+     api.get('/api/subastas')
+      .then(res => setSubastas(res.data))
+      .catch(() => setMensaje('Error al cargar las subastas'))
     }
   }, [seccion])
 
@@ -230,21 +237,84 @@ function Admin() {
           </div>
         )}
 
+
         {/* Sección subastas */}
         {seccion === 'subastas' && (
           <div>
-            <h2 className="text-xl font-bold text-gray-700 mb-4">Subastas</h2>
-            <p className="text-gray-400">Próximamente...</p>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-700">
+                Subastas ({subastas.length})
+              </h2>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow overflow-x-auto">
+              <table className="w-full">
+                <thead style={{ backgroundColor: '#4DD9E8' }}>
+                  <tr>
+                    <th className="text-left px-4 py-3 text-white">ID</th>
+                    <th className="text-left px-4 py-3 text-white">Producto</th>
+                    <th className="text-left px-4 py-3 text-white">Precio base</th>
+                    <th className="text-left px-4 py-3 text-white">Precio actual</th>
+                    <th className="text-left px-4 py-3 text-white">Inicio</th>
+                    <th className="text-left px-4 py-3 text-white">Fin</th>
+                    <th className="text-left px-4 py-3 text-white">Estado</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {subastas.map((s, i) => (
+                    <tr
+                      key={s.id}
+                      className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
+                    >
+                      <td className="px-4 py-3">{s.id}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {s.imagen && (
+                            <img
+                              src={s.imagen}
+                              alt={s.producto}
+                              className="w-12 h-12 object-cover rounded-lg"
+                            />
+                          )}
+                          <span>{s.producto}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        ${Number(s.precio_base).toLocaleString('es-AR')}
+                      </td>
+                      <td className="px-4 py-3 font-semibold">
+                        ${Number(s.precio_actual).toLocaleString('es-AR')}
+                      </td>
+                      <td className="px-4 py-3">{s.fecha_inicio}</td>
+                      <td className="px-4 py-3">{s.fecha_fin}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          s.estado === 'activa'
+                            ? 'bg-green-100 text-green-700'
+                            : s.estado === 'finalizada'
+                            ? 'bg-gray-200 text-gray-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {s.estado}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {subastas.length === 0 && (
+                    <tr>
+                      <td colSpan="7" className="text-center px-4 py-8 text-gray-400">
+                        No hay subastas para mostrar.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* Sección descuentos */}
-        {seccion === 'descuentos' && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-700 mb-4">Códigos de descuento</h2>
-            <p className="text-gray-400">Próximamente...</p>
-          </div>
-        )}
       </div>
     </div>
   )
