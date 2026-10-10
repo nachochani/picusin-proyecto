@@ -81,6 +81,95 @@ def crear_subasta(
         "id": nueva_subasta.id,
     }
 
+@router.put("/subastas/{auction_id}/extender",dependencies=[Depends(get_current_admin)],)
+def extender_subasta(
+    auction_id: int,
+    fecha_fin: date,
+    db: Session = Depends(get_db),
+):
+    subasta = db.query(Auction).filter(
+        Auction.id == auction_id
+    ).first()
+
+    if subasta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subasta no encontrada",
+        )
+
+    if subasta.estado != EstadoAuction.activa:
+        raise HTTPException(
+            status_code=400,
+            detail="Solo se pueden extender subastas activas",
+        )
+
+    fecha_fin_actual = (
+        subasta.fecha_fin.date()
+        if isinstance(subasta.fecha_fin, datetime)
+        else subasta.fecha_fin
+    )
+
+    if fecha_fin <= fecha_fin_actual:
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva fecha debe ser posterior a la fecha de finalización actual",
+        )
+
+    if fecha_fin < date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva fecha no puede ser anterior a hoy",
+        )
+
+    subasta.fecha_fin = fecha_fin
+    db.commit()
+
+    return {
+        "mensaje": "Fecha de finalización actualizada correctamente",
+        "id": subasta.id,
+        "fecha_fin": fecha_fin.isoformat(),
+    }
+
+
+@router.delete(
+    "/subastas/{auction_id}",
+    dependencies=[Depends(get_current_admin)],
+)
+def eliminar_subasta(
+    auction_id: int,
+    db: Session = Depends(get_db),
+):
+    subasta = db.query(Auction).filter(
+        Auction.id == auction_id
+    ).first()
+
+    if subasta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subasta no encontrada",
+        )
+
+    try:
+        # Primero eliminamos las pujas asociadas.
+        db.query(Auction_bid).filter(
+            Auction_bid.auction_id == auction_id
+        ).delete(synchronize_session=False)
+
+        # Después eliminamos la subasta.
+        db.delete(subasta)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo eliminar la subasta",
+        )
+
+    return {
+        "mensaje": "Subasta eliminada correctamente",
+        "id": auction_id,
+    }
 
 @router.post("/subastas/{auction_id}/pujas")
 def realizar_puja(
