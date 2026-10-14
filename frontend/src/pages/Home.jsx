@@ -10,11 +10,11 @@ function Home() {
   useEffect(() => {
     axios.get('http://127.0.0.1:8000/api/productos')
       .then(response => {
-        setProductos(response.data)
-        setCargando(false)
-      })
-      .catch(error => {
-        console.error("Error al cargar productos", error)
+        const novedades = response.data.filter(
+          producto => producto.es_novedad === true || producto.es_novedad === 1
+        )
+
+        setProductos(novedades)
         setCargando(false)
       })
   }, [])

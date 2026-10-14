@@ -7,6 +7,7 @@ import Admin from './pages/Admin'
 import AdminProducto from './pages/AdminProducto'
 import Subastas from './pages/Subastas'
 import SubastaDetalle from './pages/SubastaDetalle'
+import Productos from './pages/Productos'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/admin/producto/:id" element={<AdminProducto />} />
         <Route path="/subastas" element={<Subastas />} />
         <Route path="/subasta/:id" element={<SubastaDetalle />} />
+        <Route path="/productos" element={<Productos />} />
       </Routes>
     </BrowserRouter>
   )

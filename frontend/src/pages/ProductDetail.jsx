@@ -65,7 +65,7 @@ function ProductDetail() {
               <img
                 src={producto.imagen || 'https://via.placeholder.com/600x400?text=Sin+imagen'}
                 alt={producto.nombre}
-                className="w-full h-64 object-cover"
+                className="w-full h-64 object-contain"
               />
             )}
             <div className="p-6">
