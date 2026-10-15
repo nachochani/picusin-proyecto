@@ -294,3 +294,61 @@ def obtener_subasta(
             for puja in pujas
         ],
     }
+
+@router.get("/mis-subastas")
+def obtener_mis_subastas(
+    usuario: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pujas = (
+        db.query(Auction_bid)
+        .filter(Auction_bid.user_id == usuario.id)
+        .order_by(Auction_bid.creado_en.desc())
+        .all()
+    )
+
+    # Agrupamos las pujas por subasta para evitar repetir tarjetas.
+    subastas_usuario = {}
+
+    for puja in pujas:
+        subasta = puja.auction
+
+        if subasta is None:
+            continue
+
+        if subasta.id not in subastas_usuario:
+            subastas_usuario[subasta.id] = {
+                "id": subasta.id,
+                "product_id": subasta.product_id,
+                "producto": subasta.producto.nombre,
+                "imagen": subasta.producto.imagen,
+                "precio_base": subasta.precio_base,
+                "precio_actual": subasta.precio_actual,
+                "fecha_inicio": subasta.fecha_inicio.isoformat(),
+                "fecha_fin": subasta.fecha_fin.isoformat(),
+                "estado": subasta.estado.value,
+                "ganador_id": subasta.ganador_id,
+                "mi_ultima_puja": puja.monto,
+                "fecha_mi_ultima_puja": puja.creado_en.isoformat(),
+                "cantidad_pujas": 1,
+            }
+        else:
+            subastas_usuario[subasta.id]["cantidad_pujas"] += 1
+
+    resultado = []
+
+    for subasta in subastas_usuario.values():
+        if subasta["estado"] == "activa":
+            subasta["resultado"] = (
+                "Vas ganando"
+                if subasta["mi_ultima_puja"] == subasta["precio_actual"]
+                else "Superado"
+            )
+        elif subasta["ganador_id"] == usuario.id:
+            subasta["resultado"] = "Ganada"
+        else:
+            subasta["resultado"] = "Finalizada"
+
+        resultado.append(subasta)
+
+    return resultado

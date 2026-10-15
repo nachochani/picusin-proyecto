@@ -10,6 +10,12 @@ function MisPedidos() {
   const [cargando, setCargando] = useState(true)
   const [mensaje, setMensaje] = useState('')
 
+  const formatoPrecio = (importe) =>
+    Number(importe ?? 0).toLocaleString('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+
   useEffect(() => {
     async function cargarPedidos() {
       if (!localStorage.getItem('token')) {
@@ -67,67 +73,101 @@ function MisPedidos() {
           </div>
         ) : (
           <div className="space-y-5">
-            {pedidos.map((pedido) => (
-              <div
-                key={pedido.id}
-                className="bg-white rounded-2xl shadow-md p-5"
-              >
-                <div className="flex flex-wrap justify-between gap-3 mb-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-800">
-                      Pedido #{pedido.id}
-                    </h2>
+            {pedidos.map((pedido) => {
+              const subtotal = pedido.subtotal ??
+                pedido.items.reduce(
+                  (acumulado, item) => acumulado + Number(item.subtotal ?? 0),
+                  0
+                )
 
-                    <p className="text-sm text-gray-500">
-                      {pedido.creado_en
-                        ? new Date(pedido.creado_en).toLocaleString('es-AR')
-                        : 'Fecha no disponible'}
-                    </p>
-                  </div>
+              const descuento = Number(pedido.monto_descuento ?? 0)
 
-                  <span
-                    className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700"
-                  >
-                    {pedido.estado}
-                  </span>
-                </div>
+              return (
+                <div
+                  key={pedido.id}
+                  className="bg-white rounded-2xl shadow-md p-5"
+                >
+                  <div className="flex flex-wrap justify-between gap-3 mb-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">
+                        Pedido #{pedido.id}
+                      </h2>
 
-                <div className="space-y-3">
-                  {pedido.items.map((item, indice) => (
-                    <div
-                      key={`${pedido.id}-${item.product_id}-${indice}`}
-                      className="flex justify-between gap-4 border-t pt-3"
-                    >
-                      <div>
-                        <p className="font-semibold text-gray-800">
-                          {item.nombre}
-                        </p>
-
-                        <p className="text-sm text-gray-500">
-                          Cantidad: {item.cantidad} · Precio unitario: $
-                          {item.precio_unitario}
-                        </p>
-                      </div>
-
-                      <p className="font-semibold whitespace-nowrap">
-                        ${item.subtotal}
+                      <p className="text-sm text-gray-500">
+                        {pedido.creado_en
+                          ? new Date(pedido.creado_en).toLocaleString('es-AR')
+                          : 'Fecha no disponible'}
                       </p>
                     </div>
-                  ))}
-                </div>
 
-                <div className="border-t mt-4 pt-4 flex justify-between items-center">
-                  <span className="font-semibold">Total del pedido</span>
+                    <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700">
+                      {pedido.estado}
+                    </span>
+                  </div>
 
-                  <span
-                    className="text-xl font-bold"
-                    style={{ color: '#FF4DB8' }}
-                  >
-                    ${pedido.total}
-                  </span>
+                  <div className="space-y-3">
+                    {pedido.items.map((item, indice) => (
+                      <div
+                        key={`${pedido.id}-${item.product_id}-${indice}`}
+                        className="flex justify-between gap-4 border-t pt-3"
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {item.nombre}
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            Cantidad: {item.cantidad} · Precio unitario: $
+                            {formatoPrecio(item.precio_unitario)}
+                          </p>
+                        </div>
+
+                        <p className="font-semibold whitespace-nowrap">
+                          ${formatoPrecio(item.subtotal)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t mt-4 pt-4 space-y-2">
+                    <div className="flex justify-between gap-4 text-gray-600">
+                      <span>Subtotal</span>
+                      <span>${formatoPrecio(subtotal)}</span>
+                    </div>
+
+                    {descuento > 0 && (
+                      <>
+                        <div className="flex justify-between gap-4 text-green-700">
+                          <span>
+                            Descuento
+                            {pedido.codigo_descuento
+                              ? ` (${pedido.codigo_descuento})`
+                              : ''}
+                          </span>
+
+                          <span>
+                            -${formatoPrecio(descuento)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="border-t pt-3 flex justify-between items-center gap-4">
+                      <span className="font-semibold">
+                        Total del pedido
+                      </span>
+
+                      <span
+                        className="text-xl font-bold"
+                        style={{ color: '#FF4DB8' }}
+                      >
+                        ${formatoPrecio(pedido.total)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>

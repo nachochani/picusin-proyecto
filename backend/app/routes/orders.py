@@ -7,8 +7,10 @@ from app.models.product import Product, EstadoProducto
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.user import User
 from app.security import get_current_user
+from app.models.discount_code import Discount_code
 
 router = APIRouter()
+
 
 
 class ItemCompra(BaseModel):
@@ -18,6 +20,9 @@ class ItemCompra(BaseModel):
 
 class CompraDemo(BaseModel):
     items: list[ItemCompra]
+    codigo_descuento: str | None = None
+
+
 
 
 @router.post("/pedidos/demo")
@@ -32,7 +37,6 @@ def comprar_carrito_demo(
             detail="El carrito está vacío"
         )
 
-    # Consolidar productos repetidos para validar y descontar stock correctamente.
     cantidades = {}
     for item in compra.items:
         cantidades[item.product_id] = (
@@ -42,7 +46,6 @@ def comprar_carrito_demo(
     try:
         productos = {}
 
-        # Validar todos los productos antes de crear el pedido.
         for product_id, cantidad in cantidades.items():
             producto = (
                 db.query(Product)
@@ -77,17 +80,49 @@ def comprar_carrito_demo(
 
             productos[product_id] = producto
 
-        total = sum(
+        subtotal = sum(
             productos[product_id].precio * cantidad
             for product_id, cantidad in cantidades.items()
         )
 
-        # Un único pedido para todos los artículos.
+        codigo_descuento = None
+        monto_descuento = 0.0
+
+        if compra.codigo_descuento and compra.codigo_descuento.strip():
+            codigo = compra.codigo_descuento.strip().upper()
+
+            descuento = db.query(Discount_code).filter(
+                Discount_code.codigo == codigo
+            ).first()
+
+            if not descuento:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El código de descuento no existe"
+                )
+
+            if not descuento.activo:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El código de descuento está desactivado"
+                )
+
+            codigo_descuento = descuento.codigo
+            monto_descuento = round(
+                subtotal * descuento.porcentaje / 100,
+                2
+            )
+
+        total = round(subtotal - monto_descuento, 2)
+
         nuevo_pedido = Order(
             user_id=usuario.id,
             total=total,
+            codigo_descuento=codigo_descuento,
+            monto_descuento=monto_descuento,
             estado=OrderStatus.pagado
         )
+
         db.add(nuevo_pedido)
         db.flush()
 
@@ -111,6 +146,9 @@ def comprar_carrito_demo(
         return {
             "mensaje": "Compra demo realizada correctamente",
             "pedido_id": nuevo_pedido.id,
+            "subtotal": subtotal,
+            "codigo_descuento": codigo_descuento,
+            "monto_descuento": monto_descuento,
             "total": total,
             "estado": nuevo_pedido.estado.value
         }
@@ -124,6 +162,8 @@ def comprar_carrito_demo(
             status_code=500,
             detail="No se pudo completar la compra demo"
         )
+
+
 
 
 @router.get("/mis-pedidos")
@@ -141,6 +181,15 @@ def obtener_mis_pedidos(
     return [
         {
             "id": pedido.id,
+            "subtotal": round(
+                sum(
+                    item.cantidad * item.precio_unitario
+                    for item in pedido.items
+                ),
+                2
+            ),
+            "codigo_descuento": pedido.codigo_descuento,
+            "monto_descuento": pedido.monto_descuento,
             "total": pedido.total,
             "estado": pedido.estado.value,
             "creado_en": pedido.creado_en,
@@ -150,7 +199,9 @@ def obtener_mis_pedidos(
                     "nombre": item.product.nombre,
                     "cantidad": item.cantidad,
                     "precio_unitario": item.precio_unitario,
-                    "subtotal": item.cantidad * item.precio_unitario
+                    "subtotal": round(
+                        item.cantidad * item.precio_unitario, 2
+                    )
                 }
                 for item in pedido.items
             ]

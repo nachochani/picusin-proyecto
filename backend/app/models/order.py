@@ -16,6 +16,8 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     total = Column(Float, nullable=False)
+    codigo_descuento = Column(String(50), nullable=True)
+    monto_descuento = Column(Float, nullable=False, default=0)
     estado = Column(Enum(OrderStatus), default=OrderStatus.pendiente)
     mp_payment_id = Column(String(100), nullable=True)
     creado_en = Column(DateTime, default=func.now())

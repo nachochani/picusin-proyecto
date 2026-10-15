@@ -60,10 +60,33 @@ def crear_reserva(
         )
 
 
-@router.get("/reservaciones/{user_id}")
-def get_reservaciones(user_id: int, db: Session = Depends(get_db)):
-    reservaciones = db.query(Reservation).filter(Reservation.user_id == user_id).all()
-    if not reservaciones:
-        raise HTTPException(status_code=404, detail="No se encontraron reservaciones para este usuario")
-    return reservaciones
+
+
+@router.get("/mis-reservas")
+def obtener_mis_reservas(
+    db: Session = Depends(get_db),
+    usuario: User = Depends(get_current_user)
+):
+    reservas = (
+        db.query(Reservation)
+        .filter(Reservation.user_id == usuario.id)
+        .order_by(Reservation.creado_en.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": reserva.id,
+            "product_id": reserva.product_id,
+            "producto": reserva.product.nombre,
+            "imagen": reserva.product.imagen,
+            "precio": reserva.product.precio,
+            "monto_senia": reserva.monto_senia,
+            "estado": reserva.estado.value,
+            "estado_producto": reserva.product.estado.value,
+            "creado_en": reserva.creado_en
+        }
+        for reserva in reservas
+    ]
+
 

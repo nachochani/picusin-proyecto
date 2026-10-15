@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.models import user, product, order, weekly_catalog, catalog_product, reservation, discount_code, auction, auction_bid
-from app.routes import auth, products, reservations, admin, auctions, orders
+from app.routes import auth, products, reservations, admin, auctions, orders, discount_code
 from app.auction_tasks import finalizar_subastas_vencidas
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -45,6 +45,7 @@ app.include_router(reservations.router, prefix="/api", tags=["reservations"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(auctions.router, prefix="/api", tags=["auctions"])
 app.include_router(orders.router, prefix="/api", tags=["orders"])
+app.include_router(discount_code.router, prefix="/api", tags=["codigo"])
 
 @app.get("/")
 def root():

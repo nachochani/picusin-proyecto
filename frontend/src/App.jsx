@@ -11,6 +11,8 @@ import Productos from './pages/Productos'
 import Carrito from './pages/Carrito'
 import { CartProvider } from './context/CartContext'
 import MisPedidos from './pages/MisPedidos'
+import MisReservas from './pages/MisReservas'
+import MisSubastas from './pages/MisSubastas'
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
           <Route path="/productos" element={<Productos />} />
           <Route path="/carrito" element={<Carrito />} />
           <Route path="/mis-pedidos" element={<MisPedidos />} />
+          <Route path="/mis-reservas" element={<MisReservas />} />
+          <Route path="/mis-subastas" element={<MisSubastas />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>

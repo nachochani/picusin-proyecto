@@ -11,6 +11,9 @@ function Carrito() {
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [tipoMensaje, setTipoMensaje] = useState('')
+  const [codigoDescuento, setCodigoDescuento] = useState('')
+  const [descuentoAplicado, setDescuentoAplicado] = useState(null)
+  const [validandoCodigo, setValidandoCodigo] = useState(false)
 
 
 
@@ -32,7 +35,8 @@ function Carrito() {
         items: carrito.map((item) => ({
         product_id: item.id,
         cantidad: item.cantidad
-        }))
+        })),
+        codigo_descuento: descuentoAplicado?.codigo || null
     })
 
     vaciarCarrito()
@@ -54,7 +58,45 @@ function Carrito() {
 
     }
 
+    async function aplicarDescuento() {
+    if (!codigoDescuento.trim() || validandoCodigo) return
 
+    setValidandoCodigo(true)
+    setMensaje('')
+    setTipoMensaje('')
+
+    try {
+      const respuesta = await api.get(
+        `/api/validar/${encodeURIComponent(codigoDescuento.trim())}`
+      )
+
+      setDescuentoAplicado(respuesta.data)
+      setCodigoDescuento(respuesta.data.codigo)
+      setMensaje(respuesta.data.mensaje)
+      setTipoMensaje('exito')
+    } catch (error) {
+      setDescuentoAplicado(null)
+      setMensaje(
+        error.response?.data?.detail ||
+        'No se pudo validar el código de descuento.'
+      )
+      setTipoMensaje('error')
+    } finally {
+      setValidandoCodigo(false)
+    }
+  }
+
+  function quitarDescuento() {
+    setDescuentoAplicado(null)
+    setCodigoDescuento('')
+    setMensaje('')
+    setTipoMensaje('')
+  }
+  const importeDescuento = descuentoAplicado
+  ? total * (descuentoAplicado.porcentaje / 100)
+  : 0
+
+  const totalConDescuento = total - importeDescuento
 
   return (
     <>
@@ -134,13 +176,62 @@ function Carrito() {
             </div>
 
             <div className="bg-white rounded-2xl shadow p-6 mt-6">
+              <div className="mb-6">
+                <label className="block font-semibold text-gray-800 mb-2">
+                  ¿Tenés un código de descuento?
+                </label>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={codigoDescuento}
+                    onChange={(e) => setCodigoDescuento(e.target.value)}
+                    disabled={!!descuentoAplicado || validandoCodigo || procesando}
+                    placeholder="Ingresá tu código"
+                    className="flex-1 border border-gray-300 rounded-xl px-4 py-3 uppercase focus:outline-none focus:ring-2 focus:ring-pink-300"
+                  />
+
+                  {descuentoAplicado ? (
+                    <button
+                      type="button"
+                      onClick={quitarDescuento}
+                      disabled={procesando}
+                      className="px-5 py-3 rounded-full font-semibold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      Quitar código
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={aplicarDescuento}
+                      disabled={!codigoDescuento.trim() || validandoCodigo || procesando}
+                      className="px-5 py-3 rounded-full text-white font-semibold disabled:opacity-50"
+                      style={{ backgroundColor: '#4DD9E8' }}
+                    >
+                      {validandoCodigo ? 'Validando...' : 'Aplicar'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {descuentoAplicado && (
+                <div className="flex justify-between items-center mb-3 text-green-700">
+                  <span>
+                    Descuento ({descuentoAplicado.codigo} - {descuentoAplicado.porcentaje}%)
+                  </span>
+                  <span className="font-semibold">
+                    -${importeDescuento.toFixed(2)}
+                  </span>
+                </div>
+              )}
+
               <div className="flex justify-between items-center mb-5">
                 <span className="text-lg font-semibold">Total</span>
                 <span
                   className="text-2xl font-bold"
                   style={{ color: '#FF4DB8' }}
                 >
-                  ${total}
+                  ${totalConDescuento.toFixed(2)}
                 </span>
               </div>
 

@@ -34,7 +34,11 @@ def finalizar_subastas_vencidas():
                 puja_ganadora = (
                     db.query(Auction_bid)
                     .filter(Auction_bid.auction_id == subasta.id)
-                    .order_by(Auction_bid.monto.desc())
+                    .order_by(
+                        Auction_bid.monto.desc(),
+                        Auction_bid.creado_en.asc(),
+                        Auction_bid.id.asc()
+                    )
                     .first()
                 )
 
