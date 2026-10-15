@@ -22,3 +22,4 @@ class Product(Base):
     estado = Column(Enum(EstadoProducto), default=EstadoProducto.disponible)
     activo = Column(Boolean, default = True)
     creado_en = Column(DateTime, default = func.now())
+    categoria = Column(String(30), nullable=True)
