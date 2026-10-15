@@ -9,6 +9,8 @@ function AdminProducto() {
   const esNuevo = id === 'nuevo'
 
   const [nombre, setNombre] = useState('')
+  const [descripcion, setDescripcion] = useState('')
+  const [categoria, setCategoria] = useState('')
   const [precio, setPrecio] = useState('')
   const [imagen, setImagen] = useState('')
   const [esNovedad, setEsNovedad] = useState(false)
@@ -22,6 +24,8 @@ function AdminProducto() {
       api.get(`/api/productos/${id}`)
         .then(res => {
           setNombre(res.data.nombre)
+          setDescripcion(res.data.descripcion || '')
+          setCategoria(res.data.categoria || '')
           setPrecio(res.data.precio)
           setImagen(res.data.imagen || '')
           setEsNovedad(res.data.es_novedad)
@@ -33,18 +37,35 @@ function AdminProducto() {
   const handleGuardar = async () => {
     try {
       if (esNuevo) {
-        await api.post(
-          `/admin/productos?nombre=${encodeURIComponent(nombre)}&precio=${precio}&imagen=${encodeURIComponent(imagen)}&es_novedad=${esNovedad}&es_preventa=${esPreventa}`
-        )
-
+        await api.post('/admin/productos', null, {
+          params: {
+            nombre,
+            descripcion,
+            categoria,
+            precio,
+            imagen,
+            es_novedad: esNovedad,
+            es_preventa: esPreventa,
+          },
+        })
         setMensaje('Producto creado correctamente')
-      } else {
-        await api.put(
-          `/admin/productos/${id}?nombre=${encodeURIComponent(nombre)}&precio=${precio}&imagen=${encodeURIComponent(imagen)}`
-        )
 
-        setMensaje('Producto actualizado correctamente')
-      }
+        } else {
+          await api.put(`/admin/productos/${id}`, null, {
+            params: {
+              nombre,
+              descripcion,
+              categoria,
+              precio,
+              imagen,
+              es_novedad: esNovedad,
+              es_preventa: esPreventa,
+            },
+          })
+
+          setMensaje('Producto actualizado correctamente')
+        }
+
 
       setTimeout(() => navigate('/admin'), 1500)
     } catch (error) {
@@ -77,6 +98,23 @@ function AdminProducto() {
               onChange={(e) => setNombre(e.target.value)}
               className="border border-gray-300 rounded-lg px-4 py-2"
             />
+            
+            <textarea
+              placeholder="Descripción del producto"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2"
+              rows={3}
+            />
+
+            <input
+              type="text"
+              placeholder="Categoría (opcional)"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2"
+            />
+
             <input
               type="number"
               placeholder="Precio"

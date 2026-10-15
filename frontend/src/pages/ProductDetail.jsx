@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../api'
 import Navbar from '../components/Navbar'
 
 function ProductDetail() {
@@ -13,7 +13,7 @@ function ProductDetail() {
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-    axios.get(`http://127.0.0.1:8000/api/productos/${id}`)
+      api.get(`/api/productos/${id}`)
       .then(response => {
         setProducto(response.data)
         setCargando(false)
@@ -24,18 +24,46 @@ function ProductDetail() {
       })
   }, [id])
 
-  const handleReservar = async () => {
-    if (!token) {
-      navigate('/login')
-      return
-    }
-    try {
-      await axios.post(`http://127.0.0.1:8000/api/reservation?user_id=5&product_id=${id}`)
-      setMensaje(`Reserva creada correctamente. Seña a pagar: $${(producto.precio * 0.10).toFixed(2)}`)
-    } catch (_) {
-      setError('No se pudo crear la reserva. El producto puede estar reservado.')
-    }
+
+
+const handleReservar = async () => {
+  if (!token) {
+    navigate('/login')
+    return
   }
+
+  setError('')
+  setMensaje('')
+
+  try {
+    const respuesta = await api.post(
+      `/api/reservation?product_id=${id}`
+    )
+
+    setMensaje(
+      `Reserva creada correctamente. Seña a pagar: $${(
+        producto.precio * 0.10
+      ).toFixed(2)}`
+    )
+
+    setProducto((anterior) => ({
+      ...anterior,
+      estado: 'reservado',
+    }))
+  } catch (error) {
+    console.error(
+      'Error al crear la reserva:',
+      error.response?.data || error
+    )
+
+    setError(
+      error.response?.data?.detail ||
+      'No se pudo crear la reserva.'
+    )
+  }
+}
+
+
 
   if (cargando) return <div className="text-center mt-20">Cargando...</div>
 
