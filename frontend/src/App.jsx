@@ -8,22 +8,29 @@ import AdminProducto from './pages/AdminProducto'
 import Subastas from './pages/Subastas'
 import SubastaDetalle from './pages/SubastaDetalle'
 import Productos from './pages/Productos'
+import Carrito from './pages/Carrito'
+import { CartProvider } from './context/CartContext'
+import MisPedidos from './pages/MisPedidos'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/producto/:id" element={<ProductDetail />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/producto/:id" element={<AdminProducto />} />
-        <Route path="/subastas" element={<Subastas />} />
-        <Route path="/subasta/:id" element={<SubastaDetalle />} />
-        <Route path="/productos" element={<Productos />} />
-      </Routes>
-    </BrowserRouter>
+    <CartProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/producto/:id" element={<ProductDetail />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/producto/:id" element={<AdminProducto />} />
+          <Route path="/subastas" element={<Subastas />} />
+          <Route path="/subasta/:id" element={<SubastaDetalle />} />
+          <Route path="/productos" element={<Productos />} />
+          <Route path="/carrito" element={<Carrito />} />
+          <Route path="/mis-pedidos" element={<MisPedidos />} />
+        </Routes>
+      </BrowserRouter>
+    </CartProvider>
   )
 }
 

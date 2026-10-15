@@ -1,8 +1,15 @@
 
 import { useNavigate } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
 
 function ProductCard({ producto }) {
   const navigate = useNavigate()
+  const { carrito, agregarAlCarrito } = useCart()
+
+  const esReservable = producto.es_novedad || producto.es_preventa
+  const yaEstaEnCarrito = carrito.some(
+    (item) => item.id === producto.id
+  )
 
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
@@ -37,9 +44,30 @@ function ProductCard({ producto }) {
             Ver producto
           </button>
         </div>
+
+        {!esReservable && (
+          <button
+            onClick={() => agregarAlCarrito(producto)}
+            disabled={
+              yaEstaEnCarrito ||
+              !producto.activo ||
+              producto.estado !== 'disponible' ||
+              producto.stock < 1
+            }
+            className="w-full mt-3 px-4 py-2 rounded-full text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#FF4DB8' }}
+          >
+            {yaEstaEnCarrito
+              ? 'Agregado al carrito'
+              : producto.stock < 1 || producto.estado !== 'disponible'
+                ? 'Sin stock'
+                : 'Agregar al carrito'}
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
 export default ProductCard
+
