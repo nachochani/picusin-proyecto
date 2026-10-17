@@ -307,19 +307,37 @@ function SubastaDetalle() {
           </div>
         )}
 
+
         {subasta.estado === 'finalizada' && (
           <section className="bg-white rounded-2xl shadow-md p-6 mb-6">
             <h2 className="text-lg font-bold text-gray-800 mb-2">
               Resultado de la subasta
             </h2>
-            <p className="text-gray-600">
-              <strong>Ganador:</strong>{' '}
-              {subasta.ganador_id
-                ? `Usuario ${subasta.ganador_id}`
-                : 'La subasta finalizó sin pujas.'}
-            </p>
+
+            {subasta.ganador_id ? (
+              <div className="text-gray-600 space-y-2">
+                <p>
+                  <strong>Ganador:</strong>{' '}
+                  {subasta.ganador_nombre || 'Nombre no disponible'}
+                </p>
+
+                <p>
+                  <strong>Oferta ganadora:</strong>{' '}
+                  ${Number(
+                    subasta.pujas?.find(
+                      (puja) => puja.usuario_id === subasta.ganador_id
+                    )?.monto ?? subasta.precio_actual
+                  ).toLocaleString('es-AR')}
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-600">
+                La subasta finalizó sin pujas.
+              </p>
+            )}
           </section>
         )}
+
 
         <section className="bg-white rounded-2xl shadow-md p-6">
           <div className="flex justify-between items-center gap-3 mb-4">
@@ -359,7 +377,7 @@ function SubastaDetalle() {
                         {formatoPrecio(puja.monto)}
                       </p>
                       <p className="text-sm text-gray-500">
-                        Usuario {puja.usuario_id}
+                        Usuario: {puja.usuario_nombre}
                       </p>
                     </div>
                   </div>

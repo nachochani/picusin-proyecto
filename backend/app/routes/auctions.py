@@ -342,6 +342,7 @@ def realizar_puja(
         "usuario_id": usuario.id,
     }
 
+
 @router.get("/subastas/{auction_id}")
 def obtener_subasta(
     auction_id: int,
@@ -378,16 +379,27 @@ def obtener_subasta(
         "fecha_fin": subasta.fecha_fin,
         "estado": subasta.estado.value,
         "ganador_id": subasta.ganador_id,
+        "ganador_nombre": (
+            f"{subasta.ganador.nombre} {subasta.ganador.apellido}"
+            if subasta.ganador
+            else None
+        ),
         "pujas": [
             {
                 "id": puja.id,
                 "usuario_id": puja.user_id,
+                "usuario_nombre": (
+                    f"{puja.user.nombre} {puja.user.apellido}"
+                    if puja.user
+                    else "Usuario"
+                ),
                 "monto": puja.monto,
                 "creado_en": puja.creado_en,
             }
             for puja in pujas
         ],
     }
+
 
 @router.get("/mis-subastas")
 def obtener_mis_subastas(
