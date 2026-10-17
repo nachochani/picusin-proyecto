@@ -8,6 +8,7 @@ from app.models.order import Order, OrderItem, OrderStatus
 from app.models.user import User
 from app.security import get_current_user
 from app.models.discount_code import Discount_code
+from app.models.auction import Auction, EstadoAuction
 
 router = APIRouter()
 
@@ -59,6 +60,22 @@ def comprar_carrito_demo(
                     status_code=404,
                     detail=f"El producto {product_id} no existe o está inactivo"
                 )
+            subasta_bloqueante = db.query(Auction).filter(
+                Auction.product_id == product_id,
+                (
+                    (Auction.estado == EstadoAuction.activa)
+                    | (
+                        (Auction.estado == EstadoAuction.finalizada)
+                        & (Auction.ganador_id.isnot(None))
+                    )
+                )
+            ).first()
+
+            if subasta_bloqueante:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{producto.nombre} está bloqueado por una subasta"
+                )            
 
             if producto.es_novedad or producto.es_preventa:
                 raise HTTPException(

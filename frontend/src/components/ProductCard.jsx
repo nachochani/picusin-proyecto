@@ -1,9 +1,10 @@
 
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
 function ProductCard({ producto }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { carrito, agregarAlCarrito } = useCart()
 
   const esReservable = producto.es_novedad || producto.es_preventa
@@ -37,7 +38,13 @@ function ProductCard({ producto }) {
           </span>
 
           <button
-            onClick={() => navigate(`/producto/${producto.id}`)}
+            onClick={() =>
+              navigate(`/producto/${producto.id}`, {
+                state: {
+                  volverA: location.pathname + location.search + location.hash
+                }
+              })
+            }
             className="px-4 py-2 rounded-full text-white font-semibold hover:opacity-90"
             style={{ backgroundColor: '#4DD9E8' }}
           >
@@ -70,4 +77,5 @@ function ProductCard({ producto }) {
 }
 
 export default ProductCard
+
 

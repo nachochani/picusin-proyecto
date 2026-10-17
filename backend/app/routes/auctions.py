@@ -2,10 +2,13 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.models.reservation import Reservation, EstadoReservation
+from app.models.order import Order, OrderItem, OrderStatus
+from app.models.product import Product, EstadoProducto
+
 from app.database import get_db
 from app.models.auction import Auction, EstadoAuction
 from app.models.auction_bid import Auction_bid
-from app.models.product import Product
 from app.models.user import User
 from app.security import get_current_admin, get_current_user
 
@@ -60,6 +63,50 @@ def crear_subasta(
             status_code=404,
             detail="Producto no encontrado",
         )
+    
+    if not producto.activo:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede subastar un producto inactivo"
+        )
+
+    if producto.estado != EstadoProducto.disponible:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto no está disponible para subasta"
+        )
+
+    subasta_existente = db.query(Auction).filter(
+        Auction.product_id == product_id,
+        (
+            (Auction.estado == EstadoAuction.activa)
+            | (
+                (Auction.estado == EstadoAuction.finalizada)
+                & (Auction.ganador_id.isnot(None))
+            )
+        )
+    ).first()
+
+    if subasta_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto ya tiene una subasta activa o adjudicada"
+        )
+
+    reserva_existente = db.query(Reservation).filter(
+        Reservation.product_id == product_id,
+        Reservation.estado.in_([
+            EstadoReservation.pendiente,
+            EstadoReservation.confirmada
+        ])
+    ).first()
+
+    if reserva_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede subastar un producto con una reserva vigente"
+        )
+
 
     nueva_subasta = Auction(
         product_id=product_id,
@@ -128,6 +175,53 @@ def extender_subasta(
         "fecha_fin": fecha_fin.isoformat(),
     }
 
+
+@router.put(
+    "/subastas/{auction_id}/cancelar",
+    dependencies=[Depends(get_current_admin)],
+)
+def cancelar_subasta(
+    auction_id: int,
+    db: Session = Depends(get_db),
+):
+    subasta = db.query(Auction).filter(
+        Auction.id == auction_id
+    ).with_for_update().first()
+
+    if subasta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subasta no encontrada"
+        )
+
+    if subasta.estado != EstadoAuction.activa:
+        raise HTTPException(
+            status_code=400,
+            detail="Solo se pueden cancelar subastas activas"
+        )
+
+    try:
+        producto = subasta.producto
+
+        subasta.estado = EstadoAuction.cancelada
+        subasta.ganador_id = None
+
+        if producto:
+            producto.estado = EstadoProducto.disponible
+
+        db.commit()
+
+        return {
+            "mensaje": "Subasta cancelada correctamente",
+            "id": subasta.id
+        }
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo cancelar la subasta"
+        )
 
 @router.delete(
     "/subastas/{auction_id}",

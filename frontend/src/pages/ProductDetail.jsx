@@ -1,11 +1,16 @@
+
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
 import Navbar from '../components/Navbar'
 
 function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const volverA = location.state?.volverA || '/'
+
   const [producto, setProducto] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [mensaje, setMensaje] = useState('')
@@ -13,7 +18,7 @@ function ProductDetail() {
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-      api.get(`/api/productos/${id}`)
+    api.get(`/api/productos/${id}`)
       .then(response => {
         setProducto(response.data)
         setCargando(false)
@@ -24,55 +29,52 @@ function ProductDetail() {
       })
   }, [id])
 
+  const handleReservar = async () => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
 
+    setError('')
+    setMensaje('')
 
-const handleReservar = async () => {
-  if (!token) {
-    navigate('/login')
-    return
+    try {
+      await api.post(`/api/reservation?product_id=${id}`)
+
+      setMensaje(
+        `Reserva creada correctamente. Seña a pagar: $${(
+          producto.precio * 0.10
+        ).toFixed(2)}`
+      )
+
+      setProducto((anterior) => ({
+        ...anterior,
+        estado: 'reservado',
+      }))
+    } catch (error) {
+      console.error(
+        'Error al crear la reserva:',
+        error.response?.data || error
+      )
+
+      setError(
+        error.response?.data?.detail ||
+        'No se pudo crear la reserva.'
+      )
+    }
   }
 
-  setError('')
-  setMensaje('')
-
-  try {
-    const respuesta = await api.post(
-      `/api/reservation?product_id=${id}`
-    )
-
-    setMensaje(
-      `Reserva creada correctamente. Seña a pagar: $${(
-        producto.precio * 0.10
-      ).toFixed(2)}`
-    )
-
-    setProducto((anterior) => ({
-      ...anterior,
-      estado: 'reservado',
-    }))
-  } catch (error) {
-    console.error(
-      'Error al crear la reserva:',
-      error.response?.data || error
-    )
-
-    setError(
-      error.response?.data?.detail ||
-      'No se pudo crear la reserva.'
-    )
+  if (cargando) {
+    return <div className="text-center mt-20">Cargando...</div>
   }
-}
-
-
-
-  if (cargando) return <div className="text-center mt-20">Cargando...</div>
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(volverA)}
           className="mb-6 text-gray-500 hover:text-gray-700"
         >
           ← Volver
@@ -81,48 +83,71 @@ const handleReservar = async () => {
         {producto && (
           <div className="bg-white rounded-2xl shadow-md overflow-hidden">
             {producto.imagen && producto.imagen.includes('instagram') ? (
-              <a 
-                href={producto.imagen} 
-                target="_blank" 
+              <a
+                href={producto.imagen}
+                target="_blank"
                 rel="noreferrer"
                 className="w-full h-64 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition"
               >
-                <span className="text-gray-500 font-semibold">📷 Ver imagen</span>
+                <span className="text-gray-500 font-semibold">
+                  📷 Ver imagen
+                </span>
               </a>
             ) : (
               <img
-                src={producto.imagen || 'https://via.placeholder.com/600x400?text=Sin+imagen'}
+                src={
+                  producto.imagen ||
+                  'https://via.placeholder.com/600x400?text=Sin+imagen'
+                }
                 alt={producto.nombre}
                 className="w-full h-64 object-contain"
               />
             )}
+
             <div className="p-6">
-              <h1 className="text-3xl font-bold text-gray-800">{producto.nombre}</h1>
-              <p className="text-gray-500 mt-2">{producto.descripcion}</p>
+              <h1 className="text-3xl font-bold text-gray-800">
+                {producto.nombre}
+              </h1>
+
+              <p className="text-gray-500 mt-2">
+                {producto.descripcion}
+              </p>
+
               <div className="mt-4">
-                <span className="text-3xl font-bold" style={{color: '#FF4DB8'}}>
+                <span
+                  className="text-3xl font-bold"
+                  style={{ color: '#FF4DB8' }}
+                >
                   ${producto.precio}
                 </span>
+
                 <p className="text-gray-400 text-sm mt-1">
                   Seña: ${(producto.precio * 0.10).toFixed(2)}
                 </p>
               </div>
 
-              {mensaje && <p className="text-green-500 mt-4 font-semibold">{mensaje}</p>}
-              {error && <p className="text-red-500 mt-4">{error}</p>}
+              {mensaje && (
+                <p className="text-green-500 mt-4 font-semibold">
+                  {mensaje}
+                </p>
+              )}
+
+              {error && (
+                <p className="text-red-500 mt-4">{error}</p>
+              )}
 
               {producto.estado === 'disponible' ? (
                 <button
                   onClick={handleReservar}
                   className="mt-6 w-full py-3 rounded-xl text-white font-bold text-lg hover:opacity-90"
-                  style={{backgroundColor: '#4DD9E8'}}
+                  style={{ backgroundColor: '#4DD9E8' }}
                 >
                   Reservar
                 </button>
               ) : (
                 <div
                   className="mt-6 w-full py-3 rounded-xl text-white font-bold text-lg text-center"
-                  style={{backgroundColor: '#ccc'}}
+                  style={{ backgroundColor: '#ccc' }}
                 >
                   Producto reservado
                 </div>

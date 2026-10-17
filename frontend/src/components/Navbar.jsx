@@ -43,7 +43,7 @@ function Navbar() {
 
       <div className="flex gap-4 items-center flex-wrap">
         <button
-          onClick={() => irA('/')}
+          onClick={() => irA('/novedades')}
           className="text-white font-semibold hover:text-pink-200"
         >
           Novedades

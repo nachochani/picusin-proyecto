@@ -13,6 +13,7 @@ import { CartProvider } from './context/CartContext'
 import MisPedidos from './pages/MisPedidos'
 import MisReservas from './pages/MisReservas'
 import MisSubastas from './pages/MisSubastas'
+import Novedades from './pages/Novedades'
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/mis-pedidos" element={<MisPedidos />} />
           <Route path="/mis-reservas" element={<MisReservas />} />
           <Route path="/mis-subastas" element={<MisSubastas />} />
+          <Route path="/novedades" element={<Novedades />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
