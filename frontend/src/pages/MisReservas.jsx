@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import Navbar from '../components/Navbar'
@@ -188,6 +188,12 @@ function MisReservas() {
   const [mensaje, setMensaje] = useState('')
   const [avisoPago, setAvisoPago] = useState(null)
 
+  const [procesandoPago, setProcesandoPago] = useState(false)
+  const [errorPago, setErrorPago] = useState('')
+  const [exitoPago, setExitoPago] = useState('')
+  const pagoEnCurso = useRef(false)
+  const versionPago = useRef(0)
+
   useEffect(() => {
     if (!localStorage.getItem('token')) {
       navigate('/login')
@@ -198,19 +204,20 @@ function MisReservas() {
     let consultando = false
 
     async function cargarReservas() {
-      if (consultando) return
+      if (consultando || pagoEnCurso.current) return
 
       consultando = true
+      const version = versionPago.current
 
       try {
         const respuesta = await api.get('/api/mis-reservas')
 
-        if (activo) {
+        if (activo && version === versionPago.current && !pagoEnCurso.current) {
           setReservas(respuesta.data)
           setMensaje('')
         }
       } catch (error) {
-        if (activo) {
+        if (activo && version === versionPago.current && !pagoEnCurso.current) {
           setMensaje(
             error.response?.data?.detail ||
               'No se pudieron cargar tus reservas.'
@@ -237,8 +244,10 @@ function MisReservas() {
       clearInterval(intervalo)
     }
   }, [navigate])
-  // Función provisional hasta implementar los pagos
+  // Abrir el modal de pago
   const handlePagar = (reserva, tipo) => {
+    setErrorPago('')
+    setExitoPago('')
     setAvisoPago({
       reservaId: reserva.id,
       tipo,
@@ -247,6 +256,44 @@ function MisReservas() {
           ? reserva.monto_senia
           : reserva.saldo_restante,
     })
+  }
+
+  const confirmarPago = async () => {
+    if (!avisoPago || pagoEnCurso.current) return
+
+    pagoEnCurso.current = true
+    versionPago.current += 1
+    setProcesandoPago(true)
+    setErrorPago('')
+
+    try {
+      const { data } = await api.post(
+        `/api/pagos/demo/reserva/${avisoPago.reservaId}`,
+        null,
+        { params: { tipo: avisoPago.tipo } }
+      )
+
+      setReservas((anteriores) => anteriores.map((r) =>
+        r.id === avisoPago.reservaId ? {
+          ...r,
+          estado: data.estado_reserva,
+          senia_pagada: data.senia_pagada,
+          saldo_pagado: data.saldo_pagado,
+          puede_pagar_saldo: data.estado_reserva === 'recibida' &&
+            data.senia_pagada && !data.saldo_pagado,
+        } : r
+      ))
+      setMensaje('')
+      setExitoPago('Pago realizado correctamente.')
+      setAvisoPago(null)
+    } catch (error) {
+      const detalle = error.response?.data?.detail
+      setErrorPago(typeof detalle === 'string' ? detalle :
+        'No se pudo confirmar el pago. Revisá el estado de tu reserva.')
+    } finally {
+      pagoEnCurso.current = false
+      setProcesandoPago(false)
+    }
   }
 
   return (
@@ -265,6 +312,12 @@ function MisReservas() {
           Consultá el estado de tus reservas y realizá el
           seguimiento de tus productos.
         </p>
+
+        {exitoPago && (
+          <p role="status" className="bg-green-100 text-green-700 p-3 rounded-xl mb-4">
+            {exitoPago}
+          </p>
+        )}
 
         {cargando ? (
           <p className="text-gray-600">
@@ -440,7 +493,7 @@ function MisReservas() {
         )}
       </main>
 
-      {/* Modal provisional de pago */}
+      {/* Modal de pago */}
       {avisoPago && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div
@@ -462,21 +515,40 @@ function MisReservas() {
               Reserva #{avisoPago.reservaId}
             </p>
 
-            <p className="text-3xl font-bold text-gray-800 my-4">
-              {formatearPrecio(avisoPago.monto)}
-            </p>
+            <div className="bg-pink-50 rounded-xl p-4 my-4 text-center">
+              <p className="text-sm text-gray-500">Importe a pagar</p>
+              <p className="text-3xl font-bold text-pink-500">
+                {formatearPrecio(avisoPago.monto)}
+              </p>
+            </div>
 
-            <p className="text-sm text-gray-600 mb-5">
-              La funcionalidad de pagos todavía se encuentra
-              en desarrollo.
-            </p>
+            <h3 className="font-semibold text-gray-800 mb-2">Datos de transferencia</h3>
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-4">
+              <div><p className="text-xs text-gray-500">Titular</p><p>Picusin Mangas</p></div>
+              <div><p className="text-xs text-gray-500">Alias</p><p>PICUSIN.DEMO</p></div>
+              <div><p className="text-xs text-gray-500">CVU</p><p className="break-all">0000000000000000000000</p></div>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">Entorno de prueba. No envíes dinero a estos datos.</p>
 
+            {errorPago && (
+              <p role="alert" className="bg-red-100 text-red-700 p-3 rounded-lg mb-3 text-sm">{errorPago}</p>
+            )}
             <button
               type="button"
-              onClick={() => setAvisoPago(null)}
-              className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold"
+              disabled={procesandoPago}
+              onClick={confirmarPago}
+              className="w-full px-4 py-3 rounded-xl text-white font-semibold disabled:opacity-50"
+              style={{ backgroundColor: '#FF4DB8' }}
             >
-              Volver
+              {procesandoPago ? 'Procesando pago...' : 'Confirmar pago'}
+            </button>
+            <button
+              type="button"
+              disabled={procesandoPago}
+              onClick={() => setAvisoPago(null)}
+              className="mt-2 w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold disabled:opacity-50"
+            >
+              Cancelar
             </button>
           </div>
         </div>

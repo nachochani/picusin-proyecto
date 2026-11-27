@@ -42,45 +42,13 @@ function AdminReservas({ mostrarMensaje, pedirConfirmacion }) {
 
   useEffect(() => {
     cargarReservas()
+
+    const intervalo = setInterval(() => {
+      cargarReservas()
+    }, 5000)
+
+    return () => clearInterval(intervalo)
   }, [])
-
-  // Confirmar el pago de la seña
-  const handleConfirmarSenia = (reserva) => {
-    pedirConfirmacion({
-      titulo: 'Confirmar pago de la seña',
-      mensaje: `¿Confirmás que recibiste el pago de ${formatearPrecio(
-        reserva.monto_senia
-      )} correspondiente a la seña de la reserva #${reserva.id}?`,
-      textoBoton: 'Confirmar seña',
-      accion: async () => {
-        await api.put(
-          `/admin/reservas/${reserva.id}/confirmar-senia`
-        )
-
-        mostrarMensaje('Pago de la seña confirmado correctamente')
-        await cargarReservas()
-      },
-    })
-  }
-
-  // Confirmar el pago del saldo restante
-  const handleConfirmarSaldo = (reserva) => {
-    pedirConfirmacion({
-      titulo: 'Confirmar pago del saldo',
-      mensaje: `¿Confirmás que recibiste el pago de ${formatearPrecio(
-        reserva.saldo_restante
-      )} correspondiente al saldo de la reserva #${reserva.id}?`,
-      textoBoton: 'Confirmar saldo',
-      accion: async () => {
-        await api.put(
-          `/admin/reservas/${reserva.id}/confirmar-saldo`
-        )
-
-        mostrarMensaje('Pago del saldo confirmado correctamente')
-        await cargarReservas()
-      },
-    })
-  }
 
   // Cambiar el estado de una reserva
   const handleCambiarEstadoReserva = (reserva, estado) => {
@@ -156,8 +124,6 @@ function AdminReservas({ mostrarMensaje, pedirConfirmacion }) {
   const claseAccion =
     'text-cyan-600 hover:text-cyan-800 hover:underline font-semibold text-sm'
 
-  const clasePago =
-    'text-green-600 hover:text-green-800 hover:underline font-semibold text-sm'
 
   return (
     <div>
@@ -310,13 +276,9 @@ function AdminReservas({ mostrarMensaje, pedirConfirmacion }) {
 
                         {r.estado === 'pendiente' &&
                           !r.senia_pagada && (
-                            <button
-                              type="button"
-                              className={clasePago}
-                              onClick={() => handleConfirmarSenia(r)}
-                            >
-                              Confirmar seña
-                            </button>
+                            <span className="text-yellow-600 text-xs font-semibold">
+                              Esperando pago de la seña
+                            </span>
                           )}
 
                         {r.estado === 'pendiente' &&
@@ -361,13 +323,9 @@ function AdminReservas({ mostrarMensaje, pedirConfirmacion }) {
                         {r.estado === 'recibida' &&
                           r.senia_pagada &&
                           !r.saldo_pagado && (
-                            <button
-                              type="button"
-                              className={clasePago}
-                              onClick={() => handleConfirmarSaldo(r)}
-                            >
-                              Confirmar saldo
-                            </button>
+                            <span className="text-yellow-600 text-xs font-semibold">
+                              Esperando pago del saldo
+                            </span>
                           )}
 
                         {r.estado === 'recibida' &&
@@ -407,6 +365,7 @@ function AdminReservas({ mostrarMensaje, pedirConfirmacion }) {
                             Sin acciones disponibles
                           </span>
                         )}
+
                       </div>
                     </td>
                   </tr>
