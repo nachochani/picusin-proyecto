@@ -6,7 +6,13 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
   const navigate = useNavigate()
 
   const [productos, setProductos] = useState([])
-  const [archivo, setArchivo] = useState(null)
+  const [cargando, setCargando] = useState(true)
+
+  // Estados de búsqueda y filtros
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('todas')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [filtroTipo, setFiltroTipo] = useState('todos')
 
   // Cargar productos
   useEffect(() => {
@@ -15,32 +21,8 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
       .catch(() =>
         mostrarMensaje('Error al cargar los productos', 'error')
       )
-  }, [mostrarMensaje])
-
-  // Cargar Excel
-  const handleCargarExcel = async () => {
-    if (!archivo) {
-      mostrarMensaje('Seleccioná un archivo Excel', 'error')
-      return
-    }
-
-    const formData = new FormData()
-    formData.append('archivo', archivo)
-
-    try {
-      const res = await api.post('/admin/cargar-excel', formData)
-      const productosRes = await api.get('/admin/productos')
-
-      setProductos(productosRes.data)
-      setArchivo(null)
-      mostrarMensaje(res.data.mensaje)
-    } catch (error) {
-      mostrarMensaje(
-        error.response?.data?.detail || 'Error al cargar el archivo',
-        'error'
-      )
-    }
-  }
+      .finally(() => setCargando(false))
+  }, [])
 
   // Desactivar producto
   const handleDesactivarProducto = async (id) => {
@@ -50,35 +32,80 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
     mostrarMensaje('Producto desactivado correctamente')
   }
 
+  // Obtener categorías sin repetir
+  const categorias = [
+    ...new Set(
+      productos
+        .map((p) => p.categoria)
+        .filter(Boolean)
+    ),
+  ].sort((a, b) => a.localeCompare(b, 'es'))
+
+  // Normalizar texto para buscar sin distinguir tildes
+  const normalizarTexto = (texto) =>
+    String(texto ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+  // Aplicar búsqueda y filtros
+  const productosFiltrados = productos.filter((p) => {
+    const texto = normalizarTexto(busqueda.trim())
+
+    const coincideBusqueda =
+      normalizarTexto(p.nombre).includes(texto) ||
+      String(p.id).includes(texto)
+
+    const coincideCategoria =
+      filtroCategoria === 'todas' ||
+      p.categoria === filtroCategoria
+
+    const coincideEstado =
+      filtroEstado === 'todos' ||
+      p.estado === filtroEstado
+
+    const coincideTipo =
+      filtroTipo === 'todos' ||
+      (filtroTipo === 'novedades' && p.es_novedad) ||
+      (filtroTipo === 'catalogo' && !p.es_novedad)
+
+    return (
+      coincideBusqueda &&
+      coincideCategoria &&
+      coincideEstado &&
+      coincideTipo
+    )
+  })
+
+  // Restablecer filtros
+  const limpiarFiltros = () => {
+    setBusqueda('')
+    setFiltroCategoria('todas')
+    setFiltroEstado('todos')
+    setFiltroTipo('todos')
+  }
+
+  const hayFiltros =
+    busqueda !== '' ||
+    filtroCategoria !== 'todas' ||
+    filtroEstado !== 'todos' ||
+    filtroTipo !== 'todos'
+
+  const claseFiltro =
+    'px-4 py-2 border border-gray-200 rounded-lg bg-white outline-none focus:border-cyan-400 text-sm'
+
   return (
     <div>
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
-        <h2 className="text-lg font-bold text-gray-700 mb-3">
-          Carga masiva por Excel
-        </h2>
-
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <input
-            type="file"
-            accept=".xlsx"
-            onChange={(e) => setArchivo(e.target.files[0])}
-            className="border border-gray-300 rounded-lg px-3 py-2 max-w-full"
-          />
-
-          <button
-            type="button"
-            onClick={handleCargarExcel}
-            className="px-4 py-2 rounded-lg bg-cyan-100 text-cyan-700 hover:bg-cyan-200 font-semibold transition-colors"
-          >
-            Cargar Excel
-          </button>
-        </div>
-      </div>
-
       <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
-        <h2 className="text-xl font-bold text-gray-700">
-          Productos ({productos.length})
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold text-gray-700">
+            Productos
+          </h2>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Consultá y gestioná los productos de la tienda.
+          </p>
+        </div>
 
         <button
           type="button"
@@ -89,86 +116,191 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
         </button>
       </div>
 
+      {/* Buscador y filtros */}
+      <div className="flex flex-col lg:flex-row flex-wrap gap-3 mb-4">
+        <input
+          type="text"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre o ID..."
+          aria-label="Buscar productos"
+          className={`flex-1 ${claseFiltro}`}
+        />
+
+        <select
+          value={filtroCategoria}
+          onChange={(e) => setFiltroCategoria(e.target.value)}
+          aria-label="Filtrar por categoría"
+          className={claseFiltro}
+        >
+          <option value="todas">Todas las categorías</option>
+
+          {categorias.map((categoria) => (
+            <option key={categoria} value={categoria}>
+              {categoria}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          aria-label="Filtrar por estado"
+          className={claseFiltro}
+        >
+          <option value="todos">Todos los estados</option>
+          <option value="disponible">Disponibles</option>
+          <option value="reservado">Reservados</option>
+          <option value="vendido">Vendidos</option>
+        </select>
+
+        <select
+          value={filtroTipo}
+          onChange={(e) => setFiltroTipo(e.target.value)}
+          aria-label="Filtrar por tipo de producto"
+          className={claseFiltro}
+        >
+          <option value="todos">Todos los tipos</option>
+          <option value="novedades">Novedades</option>
+          <option value="catalogo">Catálogo</option>
+        </select>
+
+        {hayFiltros && (
+          <button
+            type="button"
+            onClick={limpiarFiltros}
+            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold text-sm transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Cantidad de productos encontrados */}
+      {!cargando && (
+        <p className="text-sm text-gray-500 mb-3">
+          Mostrando {productosFiltrados.length} de {productos.length} productos
+        </p>
+      )}
+
+      {/* Tabla de productos */}
       <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
         <table className="w-full">
           <thead style={{ backgroundColor: '#4DD9E8' }}>
             <tr>
-              <th className="text-left px-4 py-3 text-white">Nombre</th>
-              <th className="text-left px-4 py-3 text-white">Precio</th>
-              <th className="text-left px-4 py-3 text-white">Estado</th>
-              <th className="text-left px-4 py-3 text-white">Novedad</th>
-              <th className="text-left px-4 py-3 text-white">Acciones</th>
+              {[
+                'ID',
+                'Nombre',
+                'Categoría',
+                'Precio',
+                'Estado',
+                'Novedad',
+                'Acciones',
+              ].map((columna) => (
+                <th
+                  key={columna}
+                  className="text-left px-4 py-3 text-white whitespace-nowrap"
+                >
+                  {columna}
+                </th>
+              ))}
             </tr>
           </thead>
 
           <tbody>
-            {productos.map((p, i) => (
-              <tr
-                key={p.id}
-                className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-              >
-                <td className="px-4 py-3">{p.nombre}</td>
-
-                <td className="px-4 py-3">
-                  ${Number(p.precio).toLocaleString('es-AR')}
-                </td>
-
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      p.estado === 'disponible'
-                        ? 'bg-green-100 text-green-700'
-                        : p.estado === 'reservado'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {p.estado}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3">
-                  {p.es_novedad ? '✅' : '❌'}
-                </td>
-
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      className="text-cyan-600 hover:text-cyan-800 hover:underline font-semibold"
-                      onClick={() => navigate(`/admin/producto/${p.id}`)}
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      type="button"
-                      className="text-red-400 hover:text-red-600 hover:underline font-semibold"
-                      onClick={() =>
-                        pedirConfirmacion({
-                          titulo: 'Desactivar producto',
-                          mensaje: `¿Seguro que querés desactivar "${p.nombre}"? El producto dejará de estar disponible en la tienda.`,
-                          textoBoton: 'Sí, desactivar',
-                          accion: () => handleDesactivarProducto(p.id),
-                        })
-                      }
-                    >
-                      Desactivar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {productos.length === 0 && (
+            {cargando ? (
               <tr>
                 <td
-                  colSpan="5"
-                  className="text-center px-4 py-8 text-gray-400"
+                  colSpan="7"
+                  className="text-center px-4 py-8 text-gray-500"
                 >
-                  No hay productos para mostrar.
+                  Cargando productos...
                 </td>
               </tr>
+            ) : (
+              <>
+                {productosFiltrados.map((p, i) => (
+                  <tr
+                    key={p.id}
+                    className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
+                  >
+                    <td className="px-4 py-3 font-semibold text-sm">
+                      #{p.id}
+                    </td>
+
+                    <td className="px-4 py-3 min-w-[180px]">
+                      {p.nombre}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {p.categoria || 'Sin categoría'}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      ${Number(p.precio).toLocaleString('es-AR')}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${
+                          p.estado === 'disponible'
+                            ? 'bg-green-100 text-green-700'
+                            : p.estado === 'reservado'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {p.estado}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {p.es_novedad ? '✅' : '❌'}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          className="text-cyan-600 hover:text-cyan-800 hover:underline font-semibold"
+                          onClick={() =>
+                            navigate(`/admin/producto/${p.id}`)
+                          }
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          type="button"
+                          className="text-red-400 hover:text-red-600 hover:underline font-semibold"
+                          onClick={() =>
+                            pedirConfirmacion({
+                              titulo: 'Desactivar producto',
+                              mensaje: `¿Seguro que querés desactivar "${p.nombre}"? El producto dejará de estar disponible en la tienda.`,
+                              textoBoton: 'Sí, desactivar',
+                              accion: () =>
+                                handleDesactivarProducto(p.id),
+                            })
+                          }
+                        >
+                          Desactivar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {productosFiltrados.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="text-center px-4 py-8 text-gray-400"
+                    >
+                      No se encontraron productos.
+                    </td>
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>

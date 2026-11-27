@@ -16,8 +16,119 @@ router = APIRouter(
 
 @router.get("/reservas")
 def get_reservas(db: Session = Depends(get_db)):
-    reservas = db.query(Reservation).all()
-    return reservas
+    reservas = (
+        db.query(Reservation)
+        .order_by(Reservation.creado_en.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": reserva.id,
+            "user_id": reserva.user_id,
+            "usuario": (
+                f"{reserva.user.nombre} {reserva.user.apellido}"
+            ),
+            "product_id": reserva.product_id,
+            "producto": reserva.product.nombre,
+            "precio_total": reserva.precio_total,
+            "monto_senia": reserva.monto_senia,
+            "saldo_restante": round(
+                reserva.precio_total - reserva.monto_senia, 2
+            ),
+            "senia_pagada": reserva.senia_pagada,
+            "saldo_pagado": reserva.saldo_pagado,
+            "estado": reserva.estado.value,
+            "comprobante_url": reserva.comprobante_url,
+            "comprobante_saldo_url": reserva.comprobante_saldo_url,
+            "creado_en": reserva.creado_en
+        }
+        for reserva in reservas
+    ]
+
+
+@router.put("/reservas/{id}/confirmar-senia")
+def confirmar_senia(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    reserva = db.query(Reservation).filter(
+        Reservation.id == id
+    ).with_for_update().first()
+
+    if not reserva:
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada"
+        )
+
+    if reserva.estado != EstadoReservation.pendiente:
+        raise HTTPException(
+            status_code=400,
+            detail="La reserva no está pendiente de confirmación"
+        )
+
+    if reserva.senia_pagada:
+        raise HTTPException(
+            status_code=400,
+            detail="La seña ya fue confirmada"
+        )
+
+    reserva.senia_pagada = True
+    reserva.estado = EstadoReservation.confirmada
+
+    db.commit()
+
+    return {
+        "mensaje": "Pago de la seña confirmado correctamente",
+        "id": reserva.id,
+        "estado": reserva.estado.value,
+        "senia_pagada": reserva.senia_pagada
+    }
+
+
+@router.put("/reservas/{id}/confirmar-saldo")
+def confirmar_saldo(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    reserva = db.query(Reservation).filter(
+        Reservation.id == id
+    ).with_for_update().first()
+
+    if not reserva:
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada"
+        )
+
+    if reserva.estado != EstadoReservation.recibida:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto todavía no está listo para el pago del saldo"
+        )
+
+    if not reserva.senia_pagada:
+        raise HTTPException(
+            status_code=400,
+            detail="La seña no está confirmada"
+        )
+
+    if reserva.saldo_pagado:
+        raise HTTPException(
+            status_code=400,
+            detail="El saldo ya fue confirmado"
+        )
+
+    reserva.saldo_pagado = True
+
+    db.commit()
+
+    return {
+        "mensaje": "Pago del saldo confirmado correctamente",
+        "id": reserva.id,
+        "saldo_pagado": reserva.saldo_pagado
+    }
 
 
 @router.put("/reservas/{id}/estado")
@@ -28,7 +139,7 @@ def update_estado_reserva(
 ):
     reserva = db.query(Reservation).filter(
         Reservation.id == id
-    ).first()
+    ).with_for_update().first()
 
     if not reserva:
         raise HTTPException(
@@ -36,45 +147,74 @@ def update_estado_reserva(
             detail="Reserva no encontrada"
         )
 
-    estados_validos = [
-        EstadoReservation.pendiente.value,
-        EstadoReservation.confirmada.value,
-        EstadoReservation.cancelada.value
-    ]
-
-    if estado not in estados_validos:
+    try:
+        nuevo_estado = EstadoReservation(estado)
+    except ValueError:
         raise HTTPException(
             status_code=400,
             detail="Estado no válido"
         )
 
-    estado_anterior = (
-        reserva.estado.value
-        if hasattr(reserva.estado, "value")
-        else reserva.estado
-    )
+    estado_anterior = reserva.estado
 
-    if estado_anterior == EstadoReservation.cancelada.value:
-        if estado != EstadoReservation.cancelada.value:
+    if estado_anterior == nuevo_estado:
+        return {
+            "mensaje": "La reserva ya tiene ese estado",
+            "id": reserva.id,
+            "estado": reserva.estado.value
+        }
+
+    transiciones_validas = {
+        EstadoReservation.pendiente: [
+            EstadoReservation.cancelada
+        ],
+        EstadoReservation.confirmada: [
+            EstadoReservation.solicitada
+        ],
+        EstadoReservation.solicitada: [
+            EstadoReservation.recibida
+        ],
+        EstadoReservation.recibida: [
+            EstadoReservation.enviada
+        ],
+        EstadoReservation.enviada: [
+            EstadoReservation.entregada
+        ],
+        EstadoReservation.entregada: [],
+        EstadoReservation.cancelada: []
+    }
+
+    if nuevo_estado not in transiciones_validas.get(
+        estado_anterior, []
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="No se permite ese cambio de estado"
+        )
+
+    if nuevo_estado == EstadoReservation.enviada:
+        if not reserva.senia_pagada or not reserva.saldo_pagado:
             raise HTTPException(
                 status_code=400,
-                detail="No se puede reactivar una reserva cancelada"
+                detail="No se puede enviar un producto sin confirmar todos los pagos"
             )
 
-        return {
-            "mensaje": "La reserva ya estaba cancelada",
-            "id": reserva.id,
-            "estado": estado_anterior
-        }
+    if nuevo_estado == EstadoReservation.cancelada:
+        if reserva.senia_pagada or reserva.saldo_pagado:
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede cancelar una reserva con pagos confirmados"
+            )
 
     try:
         producto = db.query(Product).filter(
             Product.id == reserva.product_id
         ).with_for_update().first()
 
-        reserva.estado = EstadoReservation(estado)
+        reserva.estado = nuevo_estado
 
-        if estado == EstadoReservation.cancelada.value and producto:
+        if nuevo_estado == EstadoReservation.cancelada and producto:
+
             subasta_bloqueante = db.query(Auction).filter(
                 Auction.product_id == producto.id,
                 (
@@ -91,7 +231,10 @@ def update_estado_reserva(
                 Reservation.id != reserva.id,
                 Reservation.estado.in_([
                     EstadoReservation.pendiente,
-                    EstadoReservation.confirmada
+                    EstadoReservation.confirmada,
+                    EstadoReservation.solicitada,
+                    EstadoReservation.recibida,
+                    EstadoReservation.enviada
                 ])
             ).first()
 
@@ -101,6 +244,10 @@ def update_estado_reserva(
                 and not otra_reserva
             ):
                 producto.estado = EstadoProducto.disponible
+
+        if nuevo_estado == EstadoReservation.enviada and producto:
+            producto.estado = EstadoProducto.vendido
+            producto.stock = 0
 
         db.commit()
         db.refresh(reserva)

@@ -56,7 +56,9 @@ def crear_subasta(
             detail="La fecha de fin no puede ser anterior a la fecha de inicio",
         )
 
-    producto = db.query(Product).filter(Product.id == product_id).first()
+    producto = db.query(Product).filter(
+        Product.id == product_id
+    ).with_for_update().first()
 
     if producto is None:
         raise HTTPException(
@@ -97,7 +99,10 @@ def crear_subasta(
         Reservation.product_id == product_id,
         Reservation.estado.in_([
             EstadoReservation.pendiente,
-            EstadoReservation.confirmada
+            EstadoReservation.confirmada,
+            EstadoReservation.solicitada,
+            EstadoReservation.recibida,
+            EstadoReservation.enviada
         ])
     ).first()
 

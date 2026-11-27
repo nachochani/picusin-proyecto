@@ -5,6 +5,10 @@ function AdminSubastas({ mostrarMensaje, pedirConfirmacion }) {
   const [subastas, setSubastas] = useState([])
   const [productosDisponibles, setProductosDisponibles] = useState([])
 
+  // Búsqueda y filtros
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+
   // Crear subasta
   const [mostrarFormularioSubasta, setMostrarFormularioSubasta] = useState(false)
   const [productoSubasta, setProductoSubasta] = useState('')
@@ -171,6 +175,42 @@ function AdminSubastas({ mostrarMensaje, pedirConfirmacion }) {
 
     mostrarMensaje('Subasta eliminada correctamente')
   }
+
+  // Normalizar texto para buscar sin distinguir tildes
+  const normalizarTexto = (texto) =>
+    String(texto ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+  // Filtrar subastas
+  const subastasFiltradas = subastas.filter((s) => {
+    const texto = normalizarTexto(busqueda.trim())
+
+    const coincideBusqueda =
+      normalizarTexto(s.producto).includes(texto) ||
+      String(s.id).includes(texto)
+
+    const coincideEstado =
+      filtroEstado === 'todos' ||
+      s.estado === filtroEstado
+
+    return coincideBusqueda && coincideEstado
+  })
+
+  // Obtener los estados existentes
+  const estados = [
+    ...new Set(subastas.map((s) => s.estado).filter(Boolean)),
+  ].sort()
+
+  // Limpiar filtros
+  const limpiarFiltros = () => {
+    setBusqueda('')
+    setFiltroEstado('todos')
+  }
+
+  const hayFiltros =
+    busqueda !== '' || filtroEstado !== 'todos'
 
   return (
     <div>
@@ -349,6 +389,47 @@ function AdminSubastas({ mostrarMensaje, pedirConfirmacion }) {
           </form>
         </div>
       )}
+      {/* Buscador y filtros */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <input
+          type="text"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por ID o nombre del producto..."
+          aria-label="Buscar subastas"
+          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg bg-white outline-none focus:border-cyan-400"
+        />
+
+        <select
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          aria-label="Filtrar subastas por estado"
+          className="px-4 py-2 border border-gray-200 rounded-lg bg-white outline-none focus:border-cyan-400"
+        >
+          <option value="todos">Todos los estados</option>
+
+          {estados.map((estado) => (
+            <option key={estado} value={estado}>
+              {estado.charAt(0).toUpperCase() + estado.slice(1)}
+            </option>
+          ))}
+        </select>
+
+        {hayFiltros && (
+          <button
+            type="button"
+            onClick={limpiarFiltros}
+            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold text-sm transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Contador de resultados */}
+      <p className="text-sm text-gray-500 mb-3">
+        Mostrando {subastasFiltradas.length} de {subastas.length} subastas
+      </p>
 
       {/* Tabla de subastas */}
       <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
@@ -367,7 +448,7 @@ function AdminSubastas({ mostrarMensaje, pedirConfirmacion }) {
           </thead>
 
           <tbody>
-            {subastas.map((s, i) => (
+            {subastasFiltradas.map((s, i) => (
               <tr
                 key={s.id}
                 className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
@@ -457,7 +538,9 @@ function AdminSubastas({ mostrarMensaje, pedirConfirmacion }) {
             {subastas.length === 0 && (
               <tr>
                 <td colSpan="8" className="text-center px-4 py-8 text-gray-400">
-                  No hay subastas para mostrar.
+                  {subastas.length === 0
+                    ? 'No hay subastas para mostrar.'
+                    : 'No se encontraron subastas con los filtros seleccionados.'}
                 </td>
               </tr>
             )}
