@@ -126,6 +126,43 @@ def update_estado_reserva(
             Product.id == reserva.product_id
         ).with_for_update().first()
 
+        if not producto:
+            raise HTTPException(
+                status_code=404,
+                detail="Producto asociado a la reserva no encontrado"
+            )
+
+        if nuevo_estado in (
+            EstadoReservation.solicitada,
+            EstadoReservation.recibida,
+            EstadoReservation.enviada
+        ):
+            if not producto.es_novedad:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El producto asociado debe ser una novedad"
+                )
+
+            if producto.estado != EstadoProducto.reservado:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El producto debe permanecer reservado"
+                )
+
+        if nuevo_estado == EstadoReservation.recibida:
+            if producto.stock != 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El producto ya tiene stock físico registrado"
+                )
+
+        if nuevo_estado == EstadoReservation.enviada:
+            if producto.stock != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No hay stock físico disponible para enviar"
+                )
+
         reserva.estado = nuevo_estado
 
         if nuevo_estado == EstadoReservation.cancelada and producto:
@@ -159,8 +196,15 @@ def update_estado_reserva(
                 and not otra_reserva
             ):
                 producto.estado = EstadoProducto.disponible
+                producto.stock = 0 if producto.es_novedad else 1
 
-        if nuevo_estado == EstadoReservation.enviada and producto:
+        # Registrar la recepción física del producto
+        if nuevo_estado == EstadoReservation.recibida:
+            producto.stock = 1
+            producto.estado = EstadoProducto.reservado
+
+        # Registrar la salida física del producto
+        if nuevo_estado == EstadoReservation.enviada:
             producto.estado = EstadoProducto.vendido
             producto.stock = 0
 

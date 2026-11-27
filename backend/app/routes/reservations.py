@@ -62,6 +62,29 @@ def crear_reserva(
             detail="El producto no está disponible"
         )
 
+    if producto_existente.stock != 0:
+        raise HTTPException(
+            status_code=400,
+            detail="El stock del producto no corresponde a una novedad disponible"
+        )
+
+    reserva_activa = db.query(Reservation).filter(
+        Reservation.product_id == product_id,
+        Reservation.estado.in_([
+            EstadoReservation.pendiente,
+            EstadoReservation.confirmada,
+            EstadoReservation.solicitada,
+            EstadoReservation.recibida,
+            EstadoReservation.enviada
+        ])
+    ).first()
+
+    if reserva_activa:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto ya tiene una reserva vigente"
+        )
+
     precio_total = round(producto_existente.precio, 2)
     monto_senia = round(precio_total * 0.10, 2)
     saldo_restante = round(precio_total - monto_senia, 2)

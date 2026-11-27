@@ -33,6 +33,55 @@ def convertir_monto(monto):
         rounding=ROUND_HALF_UP
     )
 
+def registrar_pago_pedido(
+    db: Session,
+    user_id: int,
+    order_id: int,
+    monto,
+    tipo: TipoPago
+):
+    verificar_modo_demo()
+
+    if tipo not in (TipoPago.compra, TipoPago.subasta):
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de pago no válido para un pedido"
+        )
+
+    monto = convertir_monto(monto)
+
+    if monto < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="El importe del pago no es válido"
+        )
+
+    pago_existente = db.query(Payment).filter(
+        Payment.order_id == order_id,
+        Payment.estado == EstadoPago.aprobado
+    ).first()
+
+    if pago_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="Este pedido ya fue abonado"
+        )
+
+    nuevo_pago = Payment(
+        user_id=user_id,
+        order_id=order_id,
+        tipo=tipo,
+        monto=monto,
+        estado=EstadoPago.aprobado,
+        metodo=MetodoPago.demo,
+        referencia_externa=f"DEMO-{uuid4().hex}",
+        aprobado_en=datetime.now()
+    )
+
+    db.add(nuevo_pago)
+    db.flush()
+
+    return nuevo_pago
 
 def procesar_pago_reserva(
     db: Session,

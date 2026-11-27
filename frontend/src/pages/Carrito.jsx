@@ -1,13 +1,21 @@
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import Navbar from '../components/Navbar'
+import ModalPago from '../components/ModalPago'
 import { useCart } from '../context/CartContext'
 
 function Carrito() {
   const navigate = useNavigate()
-  const { carrito, total, quitarDelCarrito, vaciarCarrito } = useCart()
+
+  const {
+    carrito,
+    total,
+    quitarDelCarrito,
+    vaciarCarrito
+  } = useCart()
+
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [tipoMensaje, setTipoMensaje] = useState('')
@@ -15,51 +23,112 @@ function Carrito() {
   const [descuentoAplicado, setDescuentoAplicado] = useState(null)
   const [validandoCodigo, setValidandoCodigo] = useState(false)
 
+  // Estados del modal de pago
+  const [modalPago, setModalPago] = useState(null)
+  const [errorPago, setErrorPago] = useState('')
+  const pagoEnCurso = useRef(false)
 
-
-    async function confirmarCompra() {
-    if (!localStorage.getItem('token')) {
-        navigate('/login')
-        return
-    }
-
-    if (carrito.length === 0 || procesando) return
-
-    setProcesando(true)
-    setMensaje('')
-    setTipoMensaje('')
-
-
-    try {
-    await api.post('/api/pedidos/demo', {
-        items: carrito.map((item) => ({
-        product_id: item.id,
-        cantidad: item.cantidad
-        })),
-        codigo_descuento: descuentoAplicado?.codigo || null
+  const formatearPrecio = (precio) =>
+    Number(precio || 0).toLocaleString('es-AR', {
+      style: 'currency',
+      currency: 'ARS'
     })
 
-    vaciarCarrito()
-    setMensaje('¡Compra realizada con éxito! Redirigiendo a Mis pedidos...')
-    setTipoMensaje('exito')
+  const importeDescuento = descuentoAplicado
+    ? Math.round(
+        total * descuentoAplicado.porcentaje
+      ) / 100
+    : 0
 
-    setTimeout(() => {
+  const totalConDescuento = Math.round(
+    (total - importeDescuento) * 100
+  ) / 100
+
+  // Abrir modal sin generar todavía el pedido
+  function abrirModalPago() {
+    if (!localStorage.getItem('token')) {
+      navigate('/login')
+      return
+    }
+
+    if (
+      carrito.length === 0 ||
+      procesando ||
+      validandoCodigo
+    ) return
+
+    setMensaje('')
+    setTipoMensaje('')
+    setErrorPago('')
+
+    setModalPago({
+      monto: totalConDescuento,
+      items: carrito.map((item) => ({
+        product_id: item.id,
+        cantidad: item.cantidad
+      })),
+      codigoDescuento: descuentoAplicado?.codigo || null
+    })
+  }
+
+  // Cerrar modal
+  function cerrarModalPago() {
+    if (pagoEnCurso.current) return
+
+    setModalPago(null)
+    setErrorPago('')
+  }
+
+  // Confirmar el pago y generar el pedido
+  async function confirmarCompra() {
+    if (!modalPago || pagoEnCurso.current) return
+
+    pagoEnCurso.current = true
+    setProcesando(true)
+    setErrorPago('')
+
+    try {
+      await api.post('/api/pedidos/demo', {
+        items: modalPago.items,
+        codigo_descuento: modalPago.codigoDescuento,
+        importe_esperado: modalPago.monto
+      })
+
+      setModalPago(null)
+      vaciarCarrito()
+
+      setDescuentoAplicado(null)
+      setCodigoDescuento('')
+
+      setMensaje(
+        '¡Compra realizada con éxito! Redirigiendo a Mis pedidos...'
+      )
+      setTipoMensaje('exito')
+
+      setTimeout(() => {
         navigate('/mis-pedidos')
-    }, 1500)
+      }, 1500)
+
     } catch (error) {
-    setMensaje(
+      setErrorPago(
         error.response?.data?.detail ||
         'No se pudo completar la compra. Revisá la disponibilidad de los productos.'
-    )
-    setTipoMensaje('error')
+      )
+
     } finally {
-    setProcesando(false)
+      pagoEnCurso.current = false
+      setProcesando(false)
     }
+  }
 
-    }
-
-    async function aplicarDescuento() {
-    if (!codigoDescuento.trim() || validandoCodigo) return
+  // Aplicar código de descuento
+  async function aplicarDescuento() {
+    if (
+      !codigoDescuento.trim() ||
+      validandoCodigo ||
+      procesando ||
+      modalPago
+    ) return
 
     setValidandoCodigo(true)
     setMensaje('')
@@ -74,29 +143,31 @@ function Carrito() {
       setCodigoDescuento(respuesta.data.codigo)
       setMensaje(respuesta.data.mensaje)
       setTipoMensaje('exito')
+
     } catch (error) {
       setDescuentoAplicado(null)
+
       setMensaje(
         error.response?.data?.detail ||
         'No se pudo validar el código de descuento.'
       )
+
       setTipoMensaje('error')
+
     } finally {
       setValidandoCodigo(false)
     }
   }
 
+  // Quitar código de descuento
   function quitarDescuento() {
     setDescuentoAplicado(null)
     setCodigoDescuento('')
     setMensaje('')
     setTipoMensaje('')
   }
-  const importeDescuento = descuentoAplicado
-  ? total * (descuentoAplicado.porcentaje / 100)
-  : 0
 
-  const totalConDescuento = total - importeDescuento
+  const carritoBloqueado = procesando || !!modalPago
 
   return (
     <>
@@ -157,17 +228,25 @@ function Carrito() {
                     <h2 className="font-bold text-gray-800">
                       {item.nombre}
                     </h2>
+
                     <p className="text-gray-500">
                       Cantidad: {item.cantidad}
                     </p>
-                    <p style={{ color: '#FF4DB8' }} className="font-bold">
-                      ${item.precio * item.cantidad}
+
+                    <p
+                      style={{ color: '#FF4DB8' }}
+                      className="font-bold"
+                    >
+                      {formatearPrecio(
+                        item.precio * item.cantidad
+                      )}
                     </p>
                   </div>
 
                   <button
                     onClick={() => quitarDelCarrito(item.id)}
-                    className="px-3 py-2 rounded-full text-sm font-semibold text-red-600 hover:bg-red-50"
+                    disabled={carritoBloqueado}
+                    className="px-3 py-2 rounded-full text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
                     Quitar
                   </button>
@@ -176,6 +255,8 @@ function Carrito() {
             </div>
 
             <div className="bg-white rounded-2xl shadow p-6 mt-6">
+
+              {/* Código de descuento */}
               <div className="mb-6">
                 <label className="block font-semibold text-gray-800 mb-2">
                   ¿Tenés un código de descuento?
@@ -185,8 +266,14 @@ function Carrito() {
                   <input
                     type="text"
                     value={codigoDescuento}
-                    onChange={(e) => setCodigoDescuento(e.target.value)}
-                    disabled={!!descuentoAplicado || validandoCodigo || procesando}
+                    onChange={(e) =>
+                      setCodigoDescuento(e.target.value)
+                    }
+                    disabled={
+                      !!descuentoAplicado ||
+                      validandoCodigo ||
+                      carritoBloqueado
+                    }
                     placeholder="Ingresá tu código"
                     className="flex-1 border border-gray-300 rounded-xl px-4 py-3 uppercase focus:outline-none focus:ring-2 focus:ring-pink-300"
                   />
@@ -195,7 +282,7 @@ function Carrito() {
                     <button
                       type="button"
                       onClick={quitarDescuento}
-                      disabled={procesando}
+                      disabled={carritoBloqueado}
                       className="px-5 py-3 rounded-full font-semibold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-50"
                     >
                       Quitar código
@@ -204,52 +291,77 @@ function Carrito() {
                     <button
                       type="button"
                       onClick={aplicarDescuento}
-                      disabled={!codigoDescuento.trim() || validandoCodigo || procesando}
+                      disabled={
+                        !codigoDescuento.trim() ||
+                        validandoCodigo ||
+                        carritoBloqueado
+                      }
                       className="px-5 py-3 rounded-full text-white font-semibold disabled:opacity-50"
                       style={{ backgroundColor: '#4DD9E8' }}
                     >
-                      {validandoCodigo ? 'Validando...' : 'Aplicar'}
+                      {validandoCodigo
+                        ? 'Validando...'
+                        : 'Aplicar'}
                     </button>
                   )}
                 </div>
               </div>
 
+              {/* Subtotal */}
+              <div className="flex justify-between items-center mb-3 text-gray-600">
+                <span>Subtotal</span>
+
+                <span className="font-semibold">
+                  {formatearPrecio(total)}
+                </span>
+              </div>
+
+              {/* Descuento aplicado */}
               {descuentoAplicado && (
                 <div className="flex justify-between items-center mb-3 text-green-700">
                   <span>
-                    Descuento ({descuentoAplicado.codigo} - {descuentoAplicado.porcentaje}%)
+                    Descuento ({descuentoAplicado.codigo} -{' '}
+                    {descuentoAplicado.porcentaje}%)
                   </span>
+
                   <span className="font-semibold">
-                    -${importeDescuento.toFixed(2)}
+                    -{formatearPrecio(importeDescuento)}
                   </span>
                 </div>
               )}
 
-              <div className="flex justify-between items-center mb-5">
-                <span className="text-lg font-semibold">Total</span>
+              {/* Total de la compra */}
+              <div className="flex justify-between items-center mb-5 pt-3 border-t border-gray-200">
+                <span className="text-lg font-semibold">
+                  Total
+                </span>
+
                 <span
                   className="text-2xl font-bold"
                   style={{ color: '#FF4DB8' }}
                 >
-                  ${totalConDescuento.toFixed(2)}
+                  {formatearPrecio(totalConDescuento)}
                 </span>
               </div>
 
+              {/* Abrir modal de pago */}
               <button
-                onClick={confirmarCompra}
-                disabled={procesando}
+                type="button"
+                onClick={abrirModalPago}
+                disabled={
+                  carritoBloqueado || validandoCodigo
+                }
                 className="w-full px-5 py-3 rounded-full text-white font-bold disabled:opacity-50"
                 style={{ backgroundColor: '#FF4DB8' }}
               >
-                {procesando
-                  ? 'Procesando compra...'
-                  : 'Confirmar compra de prueba'}
+                Finalizar compra
               </button>
 
               <button
+                type="button"
                 onClick={vaciarCarrito}
-                disabled={procesando}
-                className="w-full mt-3 px-5 py-2 rounded-full font-semibold text-gray-600 hover:bg-gray-100"
+                disabled={carritoBloqueado}
+                className="w-full mt-3 px-5 py-2 rounded-full font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
               >
                 Vaciar carrito
               </button>
@@ -257,8 +369,27 @@ function Carrito() {
           </>
         )}
       </main>
+
+      {/* Modal reutilizable de pago */}
+      {modalPago && (
+        <ModalPago
+          titulo="Pagar compra"
+          descripcion={`Compra de ${
+            modalPago.items.reduce(
+              (cantidad, item) => cantidad + item.cantidad,
+              0
+            )
+          } producto(s)`}
+          monto={modalPago.monto}
+          procesando={procesando}
+          error={errorPago}
+          onConfirmar={confirmarCompra}
+          onCancelar={cerrarModalPago}
+        />
+      )}
     </>
   )
 }
 
 export default Carrito
+

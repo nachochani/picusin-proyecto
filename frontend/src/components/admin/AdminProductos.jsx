@@ -32,6 +32,24 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
     mostrarMensaje('Producto desactivado correctamente')
   }
 
+  const handlePasarAlCatalogo = async (id) => {
+  const res = await api.put(
+    `/admin/productos/${id}/pasar-catalogo`
+  )
+
+  const productoActualizado = res.data.producto
+
+  setProductos((prev) =>
+    prev.map((p) =>
+      p.id === id ? productoActualizado : p
+    )
+  )
+
+  mostrarMensaje(
+    'Producto incorporado al catálogo correctamente'
+  )
+}
+
   // Obtener categorías sin repetir
   const categorias = [
     ...new Set(
@@ -194,7 +212,8 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
                 'Categoría',
                 'Precio',
                 'Estado',
-                'Novedad',
+                'Tipo',
+                'Sotck',
                 'Acciones',
               ].map((columna) => (
                 <th
@@ -211,7 +230,7 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
             {cargando ? (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   className="text-center px-4 py-8 text-gray-500"
                 >
                   Cargando productos...
@@ -255,7 +274,27 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
                     </td>
 
                     <td className="px-4 py-3">
-                      {p.es_novedad ? '✅' : '❌'}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                          p.es_novedad
+                            ? 'bg-pink-100 text-pink-700'
+                            : 'bg-cyan-100 text-cyan-700'
+                        }`}
+                      >
+                        {p.es_novedad ? 'Novedad' : 'Catálogo'}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={`font-semibold ${
+                          p.stock > 0
+                            ? 'text-green-600'
+                            : 'text-gray-400'
+                        }`}
+                      >
+                        {p.stock}
+                      </span>
                     </td>
 
                     <td className="px-4 py-3">
@@ -269,6 +308,23 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
                         >
                           Editar
                         </button>
+
+                        {p.es_novedad && p.estado === 'disponible' && (
+                        <button
+                          type="button"
+                          className="text-pink-600 hover:text-pink-800 hover:underline font-semibold whitespace-nowrap"
+                          onClick={() =>
+                            pedirConfirmacion({
+                              titulo: 'Pasar producto al catálogo',
+                              mensaje: `¿Confirmás que recibiste físicamente "${p.nombre}"? El producto dejará de ser una novedad, tendrá stock disponible y podrá comprarse desde el catálogo.`,
+                              textoBoton: 'Pasar al catálogo',
+                              accion: () => handlePasarAlCatalogo(p.id),
+                            })
+                          }
+                        >
+                          Pasar al catálogo
+                        </button>
+                      )}
 
                         <button
                           type="button"
@@ -293,7 +349,7 @@ function AdminProductos({ mostrarMensaje, pedirConfirmacion }) {
                 {productosFiltrados.length === 0 && (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="8"
                       className="text-center px-4 py-8 text-gray-400"
                     >
                       No se encontraron productos.
